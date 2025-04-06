@@ -71,7 +71,7 @@ def login():
         "user_id": user.id,
         "is_admin": user.is_admin
     })
-
+#listing 
 # Create Listing (Seller)
 @bp.route('/listings', methods=['POST'])
 @jwt_required()
@@ -85,9 +85,6 @@ def create_listing():
         if not data or 'title' not in data or 'price' not in data:
             return jsonify({"error": "Title and price required"}), 400
         
-        if not isinstance(data['price'], (int, float)) or data['price'] <= 0:
-            return jsonify({"error": "Price must be positive number"}), 400
-        
         if not data['title'].strip():
             return jsonify({"error": "Title cannot be empty"}), 400
         
@@ -100,22 +97,176 @@ def create_listing():
             
         new_listing = Listing(
             title=data['title'].strip(),
+            description=data.get('description', '').strip(),
             price=price,
-            seller_id=current_user.id
+            category=data.get('category', 'other').strip(),
+            seller_id=current_user.id,
+            status='active'
         )
         
         db.session.add(new_listing)
         db.session.commit()
-        return jsonify({
-            "id": new_listing.id,
-            "title": new_listing.title,
-            "price": new_listing.price
-        }), 201
+        return jsonify(new_listing.to_dict()), 201
         
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Failed to create listing: {str(e)}", exc_info=True)
         return jsonify({"error": "Failed to create listing"}), 500
+    
+# Update Listing (PUT)
+@bp.route('/listings/<int:listing_id>', methods=['PUT'])
+@jwt_required()
+def update_listing(listing_id):
+    try:
+        current_user = User.query.get(int(get_jwt_identity()))
+        listing = Listing.query.get(listing_id)
+        
+        if not listing:
+            return jsonify({"error": "Listing not found"}), 404
+            
+        if listing.seller_id != current_user.id and not current_user.is_admin:
+            return jsonify({"error": "Unauthorized to edit this listing"}), 403
+            
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
+        # Update fields if they exist in request
+        if 'title' in data:
+            listing.title = data['title'].strip()
+        if 'description' in data:
+            listing.description = data['description'].strip()
+        if 'price' in data:
+            try:
+                price = float(data['price'])
+                if price <= 0:
+                    raise ValueError
+                listing.price = price
+            except ValueError:
+                return jsonify({"error": "Invalid price"}), 400
+        if 'category' in data:
+            listing.category = data['category'].strip()
+        if 'status' in data and current_user.is_admin:
+            listing.status = data['status']
+            if data['status'] == 'removed' and 'removal_reason' in data:
+                listing.removal_reason = data['removal_reason']
+                listing.moderator_id = current_user.id
+                
+        db.session.commit()
+        return jsonify(listing.to_dict()), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to update listing: {str(e)}", exc_info=True)
+        return jsonify({"error": "Failed to update listing"}), 500
 
+# Delete Listing (DELETE)
+@bp.route('/listings/<int:listing_id>', methods=['DELETE'])
+@jwt_required()
+def delete_listing(listing_id):
+    try:
+        current_user = User.query.get(int(get_jwt_identity()))
+        listing = Listing.query.get(listing_id)
+        
+        if not listing:
+            return jsonify({"error": "Listing not found"}), 404
+            
+        if listing.seller_id != current_user.id and not current_user.is_admin:
+            return jsonify({"error": "Unauthorized to delete this listing"}), 403
+            
+        # Soft delete for users, hard delete for admins
+        if current_user.is_admin:
+            db.session.delete(listing)
+        else:
+            listing.status = 'removed'
+            
+        db.session.commit()
+        return jsonify({"message": "Listing deleted"}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to delete listing: {str(e)}", exc_info=True)
+        return jsonify({"error": "Failed to delete listing"}), 500
+
+# Admin Listing Removal (POST)
+@bp.route('/admin/listings/<int:listing_id>/remove', methods=['POST'])
+@jwt_required()
+@admin_required
+def admin_remove_listing(listing_id):
+    try:
+        data = request.get_json()
+        if not data or 'reason' not in data:
+            return jsonify({"error": "Removal reason required"}), 400
+            
+        listing = Listing.query.get(listing_id)
+        if not listing:
+            return jsonify({"error": "Listing not found"}), 404
+            
+        listing.status = 'removed'
+        listing.removal_reason = data['reason'].strip()
+        listing.moderator_id = int(get_jwt_identity())
+        
+        db.session.commit()
+        return jsonify({
+            "message": "Listing removed by admin",
+            "listing_id": listing.id,
+            "status": listing.status
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Admin listing removal failed: {str(e)}", exc_info=True)
+        return jsonify({"error": "Failed to remove listing"}), 500
+
+# Search/Filter Listings (GET)
+@bp.route('/listings/search', methods=['GET'])
+def search_listings():
+    try:
+        # Get query parameters
+        query = request.args.get('q', '').strip()
+        category = request.args.get('category', '').strip()
+        min_price = request.args.get('min_price')
+        max_price = request.args.get('max_price')
+        status = request.args.get('status', 'active')
+        
+        # Base query
+        listings_query = Listing.query.filter(Listing.status == status)
+        
+        # Apply filters
+        if query:
+            listings_query = listings_query.filter(
+                Listing.title.ilike(f'%{query}%') | 
+                Listing.description.ilike(f'%{query}%')
+            )
+            
+        if category:
+            listings_query = listings_query.filter(Listing.category.ilike(f'%{category}%'))
+            
+        if min_price:
+            try:
+                listings_query = listings_query.filter(Listing.price >= float(min_price))
+            except ValueError:
+                return jsonify({"error": "Invalid min_price"}), 400
+                
+        if max_price:
+            try:
+                listings_query = listings_query.filter(Listing.price <= float(max_price))
+            except ValueError:
+                return jsonify({"error": "Invalid max_price"}), 400
+                
+        # Execute query
+        listings = listings_query.order_by(Listing.created_at.desc()).all()
+        
+        return jsonify({
+            "count": len(listings),
+            "results": [listing.to_dict() for listing in listings]
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Search failed: {str(e)}", exc_info=True)
+        return jsonify({"error": "Search failed"}), 500
+
+#transaction
 # Generate QR (Seller)
 @bp.route('/transactions/qr', methods=['POST'])
 @jwt_required()

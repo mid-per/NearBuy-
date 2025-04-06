@@ -5,14 +5,31 @@ class Listing(db.Model):
     __tablename__ = 'listings'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text) 
     price = db.Column(db.Float, nullable=False)
+    category = db.Column(db.String(50))
     seller_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone=True), onupdate=lambda: datetime.now(timezone.utc))  # Track updates
     status = db.Column(db.String(20), default='active')  # active/removed/flagged
     moderator_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    removal_reason = db.Column(db.String(200), nullable=True)  # Reason for admin removal
 
     # Relationships
     transactions = db.relationship('Transaction', back_populates='listing')
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "price": self.price,
+            "category": self.category,
+            "seller_id": self.seller_id,
+            "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }
 
 class Transaction(db.Model):
     __tablename__ = 'transactions'
