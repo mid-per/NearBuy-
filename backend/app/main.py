@@ -1,6 +1,8 @@
 from flask import Flask
 from flask_jwt_extended import JWTManager  # Import JWT manager
 from app import db
+from app.routes import bp
+from app.chat_routes import bp as chat_bp
 import os
 
 def create_app():
@@ -26,9 +28,8 @@ def create_app():
     jwt = JWTManager(app)  # Initialize JWT
 
     # 5. Register blueprints (route groups)
-    from app.routes import bp
     app.register_blueprint(bp)
-    
+    app.register_blueprint(chat_bp)
     return app
 
 app = create_app()

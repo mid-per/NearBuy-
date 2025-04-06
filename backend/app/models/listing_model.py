@@ -97,3 +97,4 @@ class Transaction(db.Model):
     )
 
     listing = db.relationship('Listing', back_populates='transactions')
+    chat_room = db.relationship('ChatRoom', back_populates='transaction', uselist=False)

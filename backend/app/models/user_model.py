@@ -30,3 +30,5 @@ class User(db.Model):
         back_populates='seller', 
         lazy=True
     )
+
+    sent_messages = db.relationship('ChatMessage', back_populates='sender')
