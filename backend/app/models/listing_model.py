@@ -1,5 +1,5 @@
 from app import db
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 class Listing(db.Model):
     __tablename__ = 'listings'
@@ -43,6 +43,15 @@ class Transaction(db.Model):
     completed_at = db.Column(db.DateTime)  # Records when the transaction was marked as completed (after QR confirmation)
     rating = db.Column(db.Integer, nullable=True)  # Rating (1-5 stars)
     feedback = db.Column(db.Text, nullable=True)   # Optional text feedback
+    status = db.Column(db.String(20), default='pending')  # pending/completed/disputed/refunded
+    dispute_reason = db.Column(db.Text, nullable=True)
+    disputed_at = db.Column(db.DateTime, nullable=True)
+    resolved_at = db.Column(db.DateTime, nullable=True)
+
+    # Status check helpers
+    def is_disputable(self):
+        return self.status in ('pending', 'completed') and \
+               datetime.now(timezone.utc) < self.created_at + timedelta(days=3)
     
     def to_dict(self):
         return {
@@ -56,6 +65,9 @@ class Transaction(db.Model):
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
             "rating": self.rating,
             "feedback": self.feedback,
+            "status": self.status,
+            "dispute_reason": self.dispute_reason,
+            "can_dispute": self.is_disputable(),
             # Relationship data (optional - include if needed)
             "buyer": {
                 "id": self.buyer.id,

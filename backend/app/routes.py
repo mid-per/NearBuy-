@@ -433,6 +433,63 @@ def rate_transaction(transaction_id):
         db.session.rollback()
         logger.error(f"Rating failed: {str(e)}", exc_info=True)
         return jsonify({"error": "Failed to submit rating"}), 500
+    
+# Dispute Transaction (Buyer)
+@bp.route('/transactions/<int:tx_id>/dispute', methods=['POST'])
+@jwt_required()
+def dispute_transaction(tx_id):
+    current_user = User.query.get(int(get_jwt_identity()))
+    data = request.get_json()
+    
+    transaction = Transaction.query.filter_by(
+        id=tx_id,
+        buyer_id=current_user.id
+    ).first()
+    
+    if not transaction:
+        return jsonify({"error": "Transaction not found"}), 404
+    
+    if not transaction.is_disputable():
+        return jsonify({"error": "Transaction not eligible for dispute"}), 400
+        
+    if not data or 'reason' not in data:
+        return jsonify({"error": "Dispute reason required"}), 400
+    
+    transaction.status = 'disputed'
+    transaction.dispute_reason = data['reason']
+    transaction.disputed_at = datetime.now(timezone.utc)
+    
+    db.session.commit()
+    return jsonify({"message": "Dispute filed"}), 200
+
+# Admin Resolve Dispute
+@bp.route('/admin/transactions/<int:tx_id>/resolve', methods=['POST'])
+@jwt_required()
+@admin_required
+def resolve_dispute(tx_id):
+    data = request.get_json()
+    transaction = Transaction.query.get(tx_id)
+    
+    if not transaction or transaction.status != 'disputed':
+        return jsonify({"error": "No active dispute found"}), 404
+        
+    if not data or 'action' not in data:
+        return jsonify({"error": "Resolution action required"}), 400
+    
+    if data['action'] == 'refund':
+        transaction.status = 'refunded'
+    elif data['action'] == 'reject':
+        transaction.status = 'completed'
+    else:
+        return jsonify({"error": "Invalid action"}), 400
+    
+    transaction.resolved_at = datetime.now(timezone.utc)
+    db.session.commit()
+    
+    return jsonify({
+        "message": f"Dispute {data['action']}ed",
+        "new_status": transaction.status
+    }), 200
 
 # Get Seller's Average Rating (Public)
 @bp.route('/users/<int:seller_id>/rating', methods=['GET'])
