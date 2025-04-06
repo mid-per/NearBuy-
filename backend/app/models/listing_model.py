@@ -41,8 +41,37 @@ class Transaction(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)) #Should record when the transaction was initially created (QR generated)
     completed = db.Column(db.Boolean, default=False)
     completed_at = db.Column(db.DateTime)  # Records when the transaction was marked as completed (after QR confirmation)
-    rating = db.Column(db.Integer)  # New field (1-5)
+    rating = db.Column(db.Integer, nullable=True)  # Rating (1-5 stars)
+    feedback = db.Column(db.Text, nullable=True)   # Optional text feedback
     
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "qr_code": self.qr_code,
+            "buyer_id": self.buyer_id,
+            "seller_id": self.seller_id,
+            "listing_id": self.listing_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "completed": self.completed,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "rating": self.rating,
+            "feedback": self.feedback,
+            # Relationship data (optional - include if needed)
+            "buyer": {
+                "id": self.buyer.id,
+                "email": self.buyer.email
+            } if self.buyer else None,
+            "seller": {
+                "id": self.seller.id,
+                "email": self.seller.email
+            } if self.seller else None,
+            "listing": {
+                "id": self.listing.id,
+                "title": self.listing.title,
+                "price": self.listing.price
+            } if self.listing else None
+        }
+
     # Relationships
     buyer = db.relationship(
         'User',

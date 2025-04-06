@@ -392,6 +392,74 @@ def transaction_history():
             "details": "Please try again later"
         }), 500
     
+# Rate a Transaction (Buyer only)
+@bp.route('/transactions/<int:transaction_id>/rate', methods=['POST'])
+@jwt_required()
+def rate_transaction(transaction_id):
+    try:
+        current_user = User.query.get(int(get_jwt_identity()))
+        data = request.get_json()
+        
+        # Validate input
+        if not data or 'rating' not in data:
+            return jsonify({"error": "Rating required"}), 400
+        
+        rating = int(data['rating'])
+        if rating < 1 or rating > 5:
+            return jsonify({"error": "Rating must be 1-5"}), 400
+        
+        # Fetch transaction (must be completed and belong to buyer)
+        transaction = Transaction.query.filter_by(
+            id=transaction_id,
+            buyer_id=current_user.id,
+            completed=True
+        ).first()
+        
+        if not transaction:
+            return jsonify({"error": "Transaction not found or not eligible for rating"}), 404
+        
+        # Update rating/feedback
+        transaction.rating = rating
+        transaction.feedback = data.get('feedback', '').strip()
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Rating submitted",
+            "transaction_id": transaction.id,
+            "seller_id": transaction.seller_id
+        }), 200
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Rating failed: {str(e)}", exc_info=True)
+        return jsonify({"error": "Failed to submit rating"}), 500
+
+# Get Seller's Average Rating (Public)
+@bp.route('/users/<int:seller_id>/rating', methods=['GET'])
+def get_seller_rating(seller_id):
+    try:
+        seller = User.query.get(seller_id)
+        if not seller:
+            return jsonify({"error": "Seller not found"}), 404
+        
+        # Calculate average rating from completed transactions
+        ratings = [
+            t.rating for t in seller.sales 
+            if t.completed and t.rating is not None
+        ]
+        
+        avg_rating = round(sum(ratings) / len(ratings), 2) if ratings else None
+        
+        return jsonify({
+            "seller_id": seller.id,
+            "average_rating": avg_rating,
+            "total_ratings": len(ratings)
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Failed to fetch ratings: {str(e)}", exc_info=True)
+        return jsonify({"error": "Failed to calculate rating"}), 500
+    
 # Admin: Delete User
 @bp.route('/admin/users/<int:user_id>', methods=['DELETE'])
 @jwt_required()
