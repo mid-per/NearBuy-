@@ -6,7 +6,7 @@ from sqlalchemy.exc import SAWarning
 
 @pytest.fixture
 def app():
-    app = create_app()
+    app, socketio = create_app()
     app.config['TESTING'] = True
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     

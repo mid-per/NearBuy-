@@ -3,6 +3,7 @@ from flask_jwt_extended import JWTManager  # Import JWT manager
 from app import db
 from app.routes import bp
 from app.chat_routes import bp as chat_bp
+from app.socket_events import init_socketio
 import os
 
 def create_app():
@@ -30,11 +31,13 @@ def create_app():
     # 5. Register blueprints (route groups)
     app.register_blueprint(bp)
     app.register_blueprint(chat_bp)
-    return app
 
-app = create_app()
+    socketio = init_socketio(app)
+    return app, socketio
+
+app, socketio = create_app() 
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()  # Create tables if they don't exist
-    app.run(debug=True)  # Run in debug mode
+    socketio.run(app, debug=True) # Run in debug mode

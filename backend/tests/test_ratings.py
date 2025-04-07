@@ -9,7 +9,7 @@ from werkzeug.security import generate_password_hash
 
 @pytest.fixture
 def client():
-    app = create_app()
+    app, socketio = create_app()
     app.config['TESTING'] = True
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     app.config['JWT_SECRET_KEY'] = 'test-secret-key'  # Required for JWT

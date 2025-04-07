@@ -1,65 +1,12 @@
-Removed Firebase completely - Using SQLite only
-
-Simplified imports - All models accessible via models.
-
-Separated concerns - Auth and QR logic in services
----------------------------------------------------------------------------------------
-
-How to Run:
-Make sure you're in the backend directory:
+just a command I used often
+for copy paste 
 
 cd C:\Users\suwijack\Desktop\year4 sem2\team software project\NearBuy\backend
-Activate the virtual environment:
 
-.\.venv\Scripts\activate
-Run using module syntax:
+test_api.bat (no need anymore, we automated testing in tests/) 
 
-python -m app.main
-
-1. Data Storage
-Where: In backend/database/nearbuy.db (SQLite database file)
-
-Format: Relational database with tables for:
-
-Users (email, password hash, role)
-
-Listings (title, price, seller_id)
-
-Transactions (qr_code, buyer/seller IDs)
-
-2. SQLAlchemy's Role
-What it does:
-
-Converts Python classes to database tables (ORM)
-
-Manages all database operations
-
-Handles relationships between tables
-
-Example: When you do db.session.add(user), SQLAlchemy:
-
-Converts the User object to SQL
-
-Inserts it into the 'users' table
-
-Manages the transaction
----------------------------------------------------------------------------------------
-Testing Sequence (CMD Version)
-
-Open Command Prompt
-Press Win + R, type cmd, and hit Enter.
-
-Navigate to Your Backend Folder
-
-cmd
-Copy
-cd C:\Users\suwijack\Desktop\year4 sem2\team software project\NearBuy\backend
-Run the Test Script
-
-cmd
-Copy
-test_api.bat
----------------------------------------------------------------------------------------
 python -m app.main
 python -m pytest tests
-python -m pytest tests/test_transactions.py -v
+python -m pytest tests/test_websocket.py -v
+
+lmao The WebSocket server runs on the same port (5000) as your Flask app

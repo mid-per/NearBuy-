@@ -31,4 +31,4 @@ class User(db.Model):
         lazy=True
     )
 
-    sent_messages = db.relationship('ChatMessage', back_populates='sender')
+    sent_messages = db.relationship('ChatMessage', back_populates='sender', lazy=True)
