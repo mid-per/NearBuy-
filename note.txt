@@ -10,3 +10,95 @@ python -m pytest tests
 python -m pytest tests/test_websocket.py -v
 
 lmao The WebSocket server runs on the same port (5000) as your Flask app
+---------------------------------------------------------------------------
+Backend Specifications
+
+1. Core Framework
+- Flask (Python web framework)
+
+- Flask-RESTful (API endpoints)
+
+- Flask-SocketIO (WebSocket/real-time communication)
+
+2. Database
+- SQLite (Development)
+
+- SQLAlchemy (ORM)
+
+- Flask-Migrate (Database migrations)
+
+3. Authentication
+- JWT (JSON Web Tokens)
+
+- Flask-JWT-Extended
+
+- Bcrypt (Password hashing)
+
+4. APIs & Routes
+- RESTful design
+
+- CRUD operations for:
+
+{Users (register/login/profile)
+
+Listings (create/update/delete)
+
+Transactions (QR generation/confirmation)
+
+Chat (WebSocket-based)}
+
+5. Testing
+-Pytest (Unit/integration tests)
+
+-Test Coverage 
+---------------------------------------------------------------------------
+Backend Dependecies 
+
+flask==2.0.1
+flask-socketio==5.1.1
+flask-sqlalchemy==3.0.1
+flask-jwt-extended==4.3.1
+python-socketio==5.5.2
+eventlet==0.33.0
+pytest==7.0.1
+---------------------------------------------------------------------------
+Frontend Specifications or progress 
+
+1. Initialized a React Native + TypeScript Project
+
+Created a Expo-based mobile app with TypeScript support
+
+Installed essential dependencies (react-navigation, axios, socket.io-client, etc.)
+
+2. Configured TypeScript for Expo & React Navigation
+
+Set up tsconfig.json for:
+
+Absolute imports (@/ paths)
+
+Strict type-checking
+
+React Native compatibility
+
+Added expo-env.d.ts to resolve Expo-specific types
+
+3. Implemented Core Navigation
+
+Built a stack navigator with 3 screens:
+
+LoginScreen → HomeScreen → SearchListingsScreen
+
+Added proper TypeScript types for navigation (in navigation.d.ts)
+
+
+---------------------------------------------------------------------------
+Frontend 
+
+Expo 52
+
+React Navigation 7
+
+React Native 0.76
+
+TypeScript 5.3
+---------------------------------------------------------------------------
