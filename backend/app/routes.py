@@ -25,6 +25,24 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+###################################################################
+#temporary for testing frontend 
+@bp.route('/create-test-user', methods=['POST'])
+def create_test_user():
+    test_user = User(
+        email='test@example.com',
+        password=generate_password_hash('testpassword'),
+        is_admin=False
+    )
+    db.session.add(test_user)
+    db.session.commit()
+    return jsonify({"message": "Test user created"}), 201
+
+@bp.route('/healthcheck')
+def healthcheck():
+    return jsonify({"message": "Backend operational", "status": "healthy"})
+
+###################################################################
 # Register (Customers or Admins)
 @bp.route('/register', methods=['POST'])
 def register():

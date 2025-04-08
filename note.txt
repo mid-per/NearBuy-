@@ -6,9 +6,11 @@ cd C:\Users\suwijack\Desktop\year4 sem2\team software project\NearBuy\backend
 test_api.bat (no need anymore, we automated testing in tests/) 
 
 python -m app.main
+npx expo start
 python -m pytest tests
 python -m pytest tests/test_websocket.py -v
 
+wsgi.py is an optional entry point that serves two main purposes in your Flask/SocketIO backend
 lmao The WebSocket server runs on the same port (5000) as your Flask app
 ---------------------------------------------------------------------------
 Backend Specifications

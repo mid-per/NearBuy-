@@ -3,13 +3,16 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginScreen from '@/screens/Auth/LoginScreen';
 import HomeScreen from '@/screens/Listings/HomeScreen';
 import SearchListingsScreen from '@/screens/Listings/SearchListingsScreen';
+import QRGenerateScreen from '@/screens/Transactions/QRGenerateScreen';
+import QRScannerScreen from '@/screens/Transactions/QRScannerScreen';
 
 // Define your root stack param types
 export type RootStackParamList = {
   Login: undefined;
   Home: undefined;
   Listings: undefined;
-  // Add other screens here as needed
+  QRGenerate: { listingId: string };  // Add this line
+  QRScanner: undefined;               // Add this line
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -32,6 +35,16 @@ export default function App() {
           name="Listings" 
           component={SearchListingsScreen}
           options={{ title: 'Browse Listings' }}
+        />
+        <Stack.Screen 
+          name="QRGenerate" 
+          component={QRGenerateScreen}
+          options={{ title: 'Generate QR Code' }}
+        />
+        <Stack.Screen 
+          name="QRScanner" 
+          component={QRScannerScreen}
+          options={{ title: 'Scan QR Code' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
