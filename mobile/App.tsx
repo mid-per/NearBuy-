@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginScreen from '@/screens/Auth/LoginScreen';
 import HomeScreen from '@/screens/Listings/HomeScreen';
 import SearchListingsScreen from '@/screens/Listings/SearchListingsScreen';
+import CreateListingScreen from '@/screens/Listings/CreateListingScreen';
 import QRGenerateScreen from '@/screens/Transactions/QRGenerateScreen';
 import QRScannerScreen from '@/screens/Transactions/QRScannerScreen';
 import RegisterScreen from '@/screens/Auth/RegisterScreen';
@@ -15,6 +16,7 @@ export type RootStackParamList = {
   Login: undefined;
   Home: undefined;
   Listings: undefined;
+  CreateListing: undefined;
   QRGenerate: { listingId: string };
   QRScanner: undefined;
   Register: undefined; 
@@ -75,6 +77,11 @@ export default function App() {
           name="Listings" 
           component={SearchListingsScreen}
           options={{ title: 'Browse Listings' }}
+        />
+        <Stack.Screen 
+          name="CreateListing" 
+          component={CreateListingScreen}
+          options={{ title: 'Create Listing' }}
         />
         <Stack.Screen 
           name="QRGenerate" 

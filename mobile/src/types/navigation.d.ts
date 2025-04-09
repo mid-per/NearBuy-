@@ -5,6 +5,7 @@ export type RootStackParamList = {
   Register: undefined; 
   Home: undefined;
   Listings: undefined;
+  CreateListing: undefined;
   QRGenerate: { listingId: string };
   QRScanner: undefined;
   // Add other screens here as you create them
