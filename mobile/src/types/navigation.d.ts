@@ -2,6 +2,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 export type RootStackParamList = {
   Login: undefined;
+  Register: undefined; 
   Home: undefined;
   Listings: undefined;
   QRGenerate: { listingId: string };
