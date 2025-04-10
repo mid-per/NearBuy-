@@ -94,6 +94,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  qrButton: {
+    backgroundColor: '#34C759',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+  },
 });
 
 export default function ListingDetailsScreen() {
@@ -140,10 +147,6 @@ export default function ListingDetailsScreen() {
   }, [listingId]);
 
   const handleContactSeller = async () => {
-    console.log('Attempting to contact seller...');
-    console.log('Current user:', user?.id);
-    console.log('Listing seller:', listing?.seller_id);
-
     if (!user) {
       Alert.alert('Login Required', 'Please login to contact the seller', [
         { text: 'Cancel' },
@@ -154,11 +157,6 @@ export default function ListingDetailsScreen() {
 
     if (!listing) {
       Alert.alert('Error', 'Listing information not available');
-      return;
-    }
-   // Double-check user ID against listing
-    if (listing?.seller_id === user.id) {
-      Alert.alert('Action Not Allowed', "You can't message yourself");
       return;
     }
 
@@ -176,7 +174,6 @@ export default function ListingDetailsScreen() {
       });
     } catch (error) {
       if (isAxiosError(error) && error.response?.status === 403) {
-        // Force refresh user data if we get a 403
         const { setUser } = useUser();
         await AsyncStorage.removeItem('access_token');
         setUser(null);
@@ -191,6 +188,13 @@ export default function ListingDetailsScreen() {
       }
     }
   };
+
+  const handleGenerateQR = () => {
+    if (!listing) return;
+    navigation.navigate('QRGenerate', { listingId: listing.id.toString() });
+  };
+
+  const isOwner = user && listing && user.id === listing.seller_id;
 
   if (loading) {
     return (
@@ -239,17 +243,21 @@ export default function ListingDetailsScreen() {
         <Text style={styles.category}>Category: {listing.category}</Text>
         <Text style={styles.description}>{listing.description || 'No description provided'}</Text>
 
-        <TouchableOpacity 
-          style={styles.button} 
-          onPress={handleContactSeller}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
+        {isOwner ? (
+          <TouchableOpacity 
+            style={styles.qrButton} 
+            onPress={handleGenerateQR}
+          >
+            <Text style={styles.buttonText}>Generate QR Code</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={styles.button} 
+            onPress={handleContactSeller}
+          >
             <Text style={styles.buttonText}>Contact Seller</Text>
-          )}
-        </TouchableOpacity>
+          </TouchableOpacity>
+        )}
       </View>
     </ScrollView>
   );
