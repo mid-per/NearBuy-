@@ -32,6 +32,14 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Welcome to NearBuy!</Text>
+
+      <View style={styles.button}>
+        <Button
+          title="Browse Marketplace"
+          onPress={() => navigation.navigate('Marketplace')}
+          color="#FF9500"
+        />
+      </View>
       
       <View style={styles.button}>
         <Button

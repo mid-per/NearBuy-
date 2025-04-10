@@ -16,10 +16,12 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.yourcompany.nearbuy",
       "infoPlist": {
-        "NSCameraUsageDescription": "This app uses the camera to scan QR codes"
+        "NSCameraUsageDescription": "This app uses the camera to scan QR codes",
+        "NSPhotoLibraryUsageDescription": "Allow access to your photos to upload listing images."
       }
     },
     "android": {
+      "permissions": ["READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -28,14 +30,6 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow NearBuy to access your camera"
-        }
-      ]
-    ]
+    }
   }
 }

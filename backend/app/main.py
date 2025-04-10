@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_jwt_extended import JWTManager  # Import JWT manager
 from app import db
 from app.routes import bp
@@ -23,6 +23,8 @@ def create_app():
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = 3600  # Token expires in 1 hour (in seconds)
     app.config["JWT_REFRESH_TOKEN_EXPIRES"] = 86400  # 24 hours for refresh tokens
     app.config["JWT_IDENTITY_CLAIM"] = "sub"  # Ensures consistent identity claim
+    app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'app', 'uploads')
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
 
     # 4. Initialize extensions
     db.init_app(app)
@@ -31,6 +33,11 @@ def create_app():
     # 5. Register blueprints (route groups)
     app.register_blueprint(bp)
     app.register_blueprint(chat_bp)
+    
+    @app.route('/uploads/<filename>')
+    def serve_uploaded_file(filename):
+        print(f"Looking for file at: {os.path.abspath(os.path.join(app.config['UPLOAD_FOLDER'], filename))}")
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
     socketio = init_socketio(app)
     return app, socketio

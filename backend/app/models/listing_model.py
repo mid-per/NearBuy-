@@ -8,6 +8,7 @@ class Listing(db.Model):
     description = db.Column(db.Text) 
     price = db.Column(db.Float, nullable=False)
     category = db.Column(db.String(50))
+    image_url = db.Column(db.String(255)) 
     seller_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime(timezone=True), onupdate=lambda: datetime.now(timezone.utc))  # Track updates
@@ -25,6 +26,7 @@ class Listing(db.Model):
             "description": self.description,
             "price": self.price,
             "category": self.category,
+            "image_url": self.image_url,
             "seller_id": self.seller_id,
             "status": self.status,
             "created_at": self.created_at.isoformat() if self.created_at else None,

@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, create_refresh_token
 from werkzeug.security import generate_password_hash, check_password_hash
 from uuid import uuid4 
@@ -9,6 +9,11 @@ from app.services.auth_service import authenticate_user
 from functools import wraps
 from datetime import datetime, timedelta, timezone
 import logging
+from app.services.upload_service import save_uploaded_file
+from werkzeug.utils import secure_filename
+import base64
+import os
+import uuid
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -100,12 +105,18 @@ def create_listing():
             return jsonify({"error": "User not found"}), 404
             
         data = request.get_json()
-        if not data or 'title' not in data or 'price' not in data:
-            return jsonify({"error": "Title and price required"}), 400
+        print("Received data:", data)  # Debug log
         
-        if not data['title'].strip():
-            return jsonify({"error": "Title cannot be empty"}), 400
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
+        # Required fields validation
+        required_fields = ['title', 'price', 'category', 'image_url']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
         
+        # Price validation
         try:
             price = float(data['price'])
             if price <= 0:
@@ -113,23 +124,68 @@ def create_listing():
         except ValueError:
             return jsonify({"error": "Invalid price"}), 400
             
+        # Create new listing
         new_listing = Listing(
             title=data['title'].strip(),
             description=data.get('description', '').strip(),
             price=price,
-            category=data.get('category', 'other').strip(),
+            category=data['category'].strip(),
+            image_url=data['image_url'],  # Make sure this matches your frontend
             seller_id=current_user.id,
             status='active'
         )
         
         db.session.add(new_listing)
         db.session.commit()
+        
         return jsonify(new_listing.to_dict()), 201
         
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Failed to create listing: {str(e)}", exc_info=True)
-        return jsonify({"error": "Failed to create listing"}), 500
+        print("Error creating listing:", str(e))  # Detailed error log
+        return jsonify({
+            "error": "Failed to create listing",
+            "details": str(e)
+        }), 500
+
+@bp.route('/upload', methods=['POST'])
+@jwt_required()
+def upload_file():
+    try:
+        data = request.get_json()
+        if not data or 'image' not in data:
+            return jsonify({"error": "No image data provided"}), 400
+
+        # Validate base64 image data
+        if not data['image'].startswith('data:image/'):
+            return jsonify({"error": "Invalid image format"}), 400
+
+        # Extract metadata
+        header, encoded = data['image'].split(',', 1)
+        file_ext = header.split(';')[0].split('/')[-1]
+        
+        # Use provided filename or generate one
+        filename = data.get('filename') or f"{uuid.uuid4()}.{file_ext}"
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+
+        # Ensure upload directory exists
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        # Save the file
+        with open(filepath, 'wb') as f:
+            f.write(base64.b64decode(encoded))
+
+        return jsonify({
+            "message": "File uploaded successfully",
+            "url": f"{request.host_url}uploads/{filename}".replace('http://', 'http://')  # Ensures proper URL format
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Upload failed: {str(e)}")
+        return jsonify({
+            "error": "File upload failed",
+            "details": str(e)
+        }), 500
     
 # Update Listing (PUT)
 @bp.route('/listings/<int:listing_id>', methods=['PUT'])
@@ -236,6 +292,20 @@ def admin_remove_listing(listing_id):
         logger.error(f"Admin listing removal failed: {str(e)}", exc_info=True)
         return jsonify({"error": "Failed to remove listing"}), 500
 
+# Get Single Listing (GET)
+@bp.route('/listings/<int:listing_id>', methods=['GET'])
+def get_listing(listing_id):
+    try:
+        listing = Listing.query.get(listing_id)
+        if not listing or listing.status != 'active':
+            return jsonify({"error": "Listing not found"}), 404
+            
+        return jsonify(listing.to_dict()), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to fetch listing: {str(e)}", exc_info=True)
+        return jsonify({"error": "Failed to fetch listing"}), 500
+    
 # Search/Filter Listings (GET)
 @bp.route('/listings/search', methods=['GET'])
 def search_listings():

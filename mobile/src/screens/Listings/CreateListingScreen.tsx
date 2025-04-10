@@ -1,20 +1,17 @@
 import React, { useState } from 'react';
 import { 
-  View,
-  Text,
-  TextInput,
-  Button,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  TouchableOpacity
+  View, Text, TextInput, Button, StyleSheet, 
+  ActivityIndicator, Alert, ScrollView, TouchableOpacity, Image
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '@/types/navigation';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { launchImageLibrary } from 'react-native-image-picker';
+import * as FileSystem from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
 import client from '@/api/client';
 import { isAxiosError } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type CreateListingScreenProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -74,6 +71,19 @@ const styles = StyleSheet.create({
   selectedCategoryText: {
     color: '#fff',
   },
+  imageContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  image: {
+    width: 200,
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  addPhotoButton: {
+    backgroundColor: '#f0f0f0',
+  },
 });
 
 const CATEGORIES = [
@@ -90,12 +100,39 @@ export default function CreateListingScreen() {
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState('');
+  const [image, setImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation<CreateListingScreenProp>();
 
+  const pickImage = async () => {
+    // Request permissions
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'We need camera roll permissions to upload photos');
+      return;
+    }
+
+    // Updated to modern Expo ImagePicker API
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], // Simplified media type
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets?.length > 0) {
+      setImage(result.assets[0].uri);
+    }
+  };
+  
   const handleSubmit = async () => {
     if (!title || !price || !category) {
       Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    if (!image) {
+      Alert.alert('Error', 'Please add a photo of your item');
       return;
     }
 
@@ -107,36 +144,47 @@ export default function CreateListingScreen() {
 
     setIsLoading(true);
 
+ 
     try {
-      const response = await client.post('/listings', {
-        title,
-        description,
-        price: priceNumber,
-        category,
+      // 1. Upload image
+      const fileInfo = await FileSystem.getInfoAsync(image);
+      const fileContent = await FileSystem.readAsStringAsync(image, {
+        encoding: FileSystem.EncodingType.Base64,
       });
-
+      const fileExt = image.split('.').pop()?.toLowerCase() || 'jpg';
+  
+      const uploadResponse = await client.post('/upload', {
+        image: `data:image/${fileExt};base64,${fileContent}`,
+        filename: `listing_${Date.now()}.${fileExt}`
+      });
+  
+      // 2. Create listing - ensure field names match backend
+      const response = await client.post('/listings', {
+        title: title.trim(),
+        description: description.trim(),
+        price: priceNumber,  // Already validated
+        category: category.trim(),
+        image_url: uploadResponse.data.url  // Must match backend expectation
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+  
       if (response.status === 201) {
-        Alert.alert(
-          'Success',
-          'Listing created successfully!',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.goBack(),
-            },
-          ]
-        );
+        Alert.alert('Success', 'Listing created!');
+        navigation.goBack();
       }
     } catch (error) {
-      let errorMessage = 'Failed to create listing';
-      
+      let errorDetails = '';
       if (isAxiosError(error)) {
-        errorMessage = error.response?.data?.error || error.message;
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
+        console.log('Full error response:', error.response);
+        errorDetails = error.response?.data?.details || error.response?.data?.error;
       }
-
-      Alert.alert('Error', errorMessage);
+      Alert.alert(
+        'Error',
+        `Failed to create listing${errorDetails ? `: ${errorDetails}` : ''}`
+      );
     } finally {
       setIsLoading(false);
     }
@@ -145,6 +193,22 @@ export default function CreateListingScreen() {
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Create New Listing</Text>
+
+      <View style={styles.imageContainer}>
+        {image && (
+          <Image 
+            source={{ uri: image }} 
+            style={styles.image} 
+          />
+        )}
+        <View style={[styles.button, styles.addPhotoButton]}>
+          <Button
+            title={image ? 'Change Photo' : 'Add Photo'}
+            onPress={pickImage}
+            color="#888"
+          />
+        </View>
+      </View>
 
       <TextInput
         style={styles.input}
@@ -201,7 +265,7 @@ export default function CreateListingScreen() {
             title="Create Listing"
             onPress={handleSubmit}
             color="#007AFF"
-            disabled={!title || !price || !category}
+            disabled={!title || !price || !category || !image}
           />
         </View>
       )}

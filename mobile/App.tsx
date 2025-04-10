@@ -1,8 +1,9 @@
+// App.tsx
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginScreen from '@/screens/Auth/LoginScreen';
 import HomeScreen from '@/screens/Listings/HomeScreen';
-import SearchListingsScreen from '@/screens/Listings/SearchListingsScreen';
+import MarketplaceScreen from '@/screens/Listings/MarketplaceScreen';
 import CreateListingScreen from '@/screens/Listings/CreateListingScreen';
 import QRGenerateScreen from '@/screens/Transactions/QRGenerateScreen';
 import QRScannerScreen from '@/screens/Transactions/QRScannerScreen';
@@ -10,17 +11,9 @@ import RegisterScreen from '@/screens/Auth/RegisterScreen';
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-
-// Define your root stack param types
-export type RootStackParamList = {
-  Login: undefined;
-  Home: undefined;
-  Listings: undefined;
-  CreateListing: undefined;
-  QRGenerate: { listingId: string };
-  QRScanner: undefined;
-  Register: undefined; 
-};
+import { RootStackParamList } from '@/types/navigation';
+import ListingDetailsScreen from '@/screens/Listings/ListingDetailsScreen';
+import ChatScreen from '@/screens/Chat/ChatScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -30,12 +23,8 @@ export default function App() {
   useEffect(() => {
     async function prepare() {
       try {
-        // Keep splash screen visible
         await SplashScreen.preventAutoHideAsync();
-        
-        // Add any async initialization here (fonts, API calls, etc.)
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate loading
-        
+        await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (e) {
         console.warn(e);
       } finally {
@@ -74,14 +63,24 @@ export default function App() {
           options={{ title: 'Welcome' }}
         />
         <Stack.Screen 
-          name="Listings" 
-          component={SearchListingsScreen}
+          name="Marketplace" 
+          component={MarketplaceScreen}
           options={{ title: 'Browse Listings' }}
         />
         <Stack.Screen 
           name="CreateListing" 
           component={CreateListingScreen}
           options={{ title: 'Create Listing' }}
+        />
+        <Stack.Screen 
+          name="ListingDetails" 
+          component={ListingDetailsScreen}
+          options={{ title: 'Listing Details' }}
+        />
+        <Stack.Screen 
+          name="Chat" 
+          component={ChatScreen}
+          options={{ title: 'Chat with Seller' }}
         />
         <Stack.Screen 
           name="QRGenerate" 

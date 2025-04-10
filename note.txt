@@ -6,7 +6,9 @@ cd C:\Users\suwijack\Desktop\year4 sem2\team software project\NearBuy\backend
 test_api.bat (no need anymore, we automated testing in tests/) 
 
 python -m app.main
+for expo remember to always use npx -> New Local Expo CLI
 npx expo start -c
+npx react-native run-android
 python -m pytest tests
 python -m pytest tests/test_websocket.py -v
 
