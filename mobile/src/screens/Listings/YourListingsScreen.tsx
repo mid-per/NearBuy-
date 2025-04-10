@@ -89,6 +89,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  soldIndicator: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(255, 59, 48, 0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  soldIndicatorText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
 });
 
 export default function YourListingsScreen() {
@@ -106,7 +120,7 @@ export default function YourListingsScreen() {
       const response = await client.get('/listings/search', {
         params: { 
           seller_id: user.id,
-          status: 'active' // Ensure we only get active listings
+          // Remove the status filter to get all listings
         }
       });
       setListings(response.data.results);
@@ -139,9 +153,17 @@ export default function YourListingsScreen() {
 
   const renderItem = ({ item }: { item: Listing }) => (
     <TouchableOpacity
-      style={styles.itemContainer}
+      style={[
+        styles.itemContainer,
+        item.status === 'sold' && { opacity: 0.6 }
+      ]}
       onPress={() => handleListingPress(item)}
     >
+      {item.status === 'sold' && (
+        <View style={styles.soldIndicator}>
+          <Text style={styles.soldIndicatorText}>SOLD</Text>
+        </View>
+      )}
       <Image
         source={{
           uri: item.image_url || 'https://via.placeholder.com/300'
@@ -149,10 +171,21 @@ export default function YourListingsScreen() {
         style={styles.itemImage}
       />
       <View style={styles.itemDetails}>
-        <Text style={styles.itemTitle} numberOfLines={1}>
+        <Text 
+          style={[
+            styles.itemTitle,
+            item.status === 'sold' && { color: '#888', textDecorationLine: 'line-through' }
+          ]} 
+          numberOfLines={1}
+        >
           {item.title}
         </Text>
-        <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+        <Text style={[
+          styles.itemPrice,
+          item.status === 'sold' && { color: '#FF3B30' }
+        ]}>
+          {item.status === 'sold' ? 'SOLD' : `$${item.price.toFixed(2)}`}
+        </Text>
       </View>
     </TouchableOpacity>
   );

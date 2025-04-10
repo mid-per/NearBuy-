@@ -62,12 +62,33 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 20,
   },
+  buttonContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
   button: {
     backgroundColor: '#007AFF',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 20,
+    width: '100%', // Full width of container
+  },
+  qrButton: {
+    backgroundColor: '#34C759',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+    width: '100%',
+  },
+  soldButton: {
+    backgroundColor: '#FF3B30',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+    width: '100%',
   },
   buttonText: {
     color: '#fff',
@@ -94,13 +115,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  qrButton: {
-    backgroundColor: '#34C759',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
-  },
 });
 
 export default function ListingDetailsScreen() {
@@ -112,39 +126,52 @@ export default function ListingDetailsScreen() {
   const [error, setError] = useState('');
   const [sellerEmail, setSellerEmail] = useState('');
   const { user } = useUser();
+  const [listingStatus, setListingStatus] = useState<'available' | 'sold'>('available');
+  const [sellerInfo, setSellerInfo] = useState({
+    name: '',
+    avatar: ''
+  });
 
   useEffect(() => {
     const fetchListingDetails = async () => {
       try {
         setLoading(true);
-        // Fetch listing details
+        // 1. Fetch listing details
         const listingResponse = await client.get(`/listings/${listingId}`);
         setListing(listingResponse.data);
         
-        // Fetch seller info if available
-        if (listingResponse.data?.seller_id) {
-          try {
-            const sellerResponse = await client.get(`/users/${listingResponse.data.seller_id}`);
-            setSellerEmail(sellerResponse.data.email);
-          } catch (sellerError) {
-            console.log('Could not fetch seller details, using ID instead');
-            setSellerEmail(`User ${listingResponse.data.seller_id}`);
-          }
+      // 2. Check if listing is sold directly from its status
+      setListingStatus(listingResponse.data.status === 'sold' ? 'sold' : 'available');
+      
+      // 3. Fetch seller info
+      if (listingResponse.data?.seller_id) {
+        try {
+          const sellerResponse = await client.get(`/users/${listingResponse.data.seller_id}`);
+          setSellerEmail(sellerResponse.data.email);
+        } catch (sellerError) {
+          console.log('Using fallback seller info');
+          setSellerEmail(`User ${listingResponse.data.seller_id}`);
         }
-      } catch (err) {
-        console.error('Failed to fetch listing:', err);
-        if (isAxiosError(err)) {
-          setError(err.response?.data?.error || 'Failed to load listing');
-        } else {
-          setError('Failed to load listing');
-        }
-      } finally {
-        setLoading(false);
       }
-    };
+      
+    } catch (err) {
+      console.error('Failed to fetch listing:', err);
+      if (isAxiosError(err)) {
+        setError(err.response?.status === 404 
+          ? 'Listing not found' 
+          : err.response?.data?.error || 'Failed to load listing'
+        );
+      } else {
+        setError('Failed to load listing');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchListingDetails();
-  }, [listingId]);
+  fetchListingDetails();
+}, [listingId]);
+
 
   const handleContactSeller = async () => {
     if (!user) {
@@ -242,23 +269,32 @@ export default function ListingDetailsScreen() {
         <Text style={styles.sellerInfo}>Sold by: {sellerEmail || `User ${listing.seller_id}`}</Text>
         <Text style={styles.category}>Category: {listing.category}</Text>
         <Text style={styles.description}>{listing.description || 'No description provided'}</Text>
-
-        {isOwner ? (
-          <TouchableOpacity 
-            style={styles.qrButton} 
-            onPress={handleGenerateQR}
-          >
-            <Text style={styles.buttonText}>Generate QR Code</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity 
-            style={styles.button} 
-            onPress={handleContactSeller}
-          >
-            <Text style={styles.buttonText}>Contact Seller</Text>
-          </TouchableOpacity>
-        )}
       </View>
+
+      <View style={styles.buttonContainer}>
+      {listingStatus === 'sold' ? (
+        <TouchableOpacity 
+          style={styles.soldButton}
+          disabled
+        >
+          <Text style={styles.buttonText}>SOLD</Text>
+        </TouchableOpacity>
+      ) : isOwner ? (
+        <TouchableOpacity 
+          style={styles.qrButton} 
+          onPress={handleGenerateQR}
+        >
+          <Text style={styles.buttonText}>Generate QR Code</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={handleContactSeller}
+        >
+          <Text style={styles.buttonText}>Contact Seller</Text>
+        </TouchableOpacity>
+      )}
+    </View>
     </ScrollView>
   );
 }

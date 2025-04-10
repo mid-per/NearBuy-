@@ -130,6 +130,18 @@ const styles = StyleSheet.create({
   activeFilterText: {
     color: '#fff',
   },
+  soldText: {
+    color: 'red',
+    textDecorationLine: 'line-through'
+  },
+  soldPrice: {
+    color: 'red',
+    fontWeight: 'bold'
+  },
+  disabledButton: {
+    backgroundColor: 'gray',
+    opacity: 0.7
+  }
 });
 
 const CATEGORIES = [
@@ -169,7 +181,10 @@ export default function MarketplaceScreen() {
     } catch (err) {
       console.error('Failed to fetch listings:', err);
       if (isAxiosError(err)) {
-        setError(err.response?.data?.error || 'Failed to load listings');
+        setError(err.response?.status === 404
+          ? 'No listings found'
+          : err.response?.data?.error || 'Failed to load listings'
+        );
       } else {
         setError('Failed to load listings');
       }
@@ -194,25 +209,29 @@ export default function MarketplaceScreen() {
 
   const renderItem = ({ item }: { item: Listing }) => (
     <TouchableOpacity
-      style={styles.itemContainer}
+      style={[
+        styles.itemContainer,
+        item.status === 'sold' && { opacity: 0.6 }
+      ]}
       onPress={() => handleListingPress(item)}
     >
       <Image
-        source={{
-          uri: item.image_url 
-            ? item.image_url.startsWith('http') 
-              ? item.image_url // Use as-is if already full URL
-              : `${BACKEND_BASE_URL}${item.image_url}` // Construct full URL
-            : 'https://via.placeholder.com/300'
-        }}
+        source={{ uri: item.image_url || 'https://via.placeholder.com/300' }}
         style={styles.itemImage}
-        onError={(e) => console.log('Failed to load image:', e.nativeEvent.error)}
       />
       <View style={styles.itemDetails}>
-        <Text style={styles.itemTitle} numberOfLines={1}>
+        <Text 
+          style={[
+            styles.itemTitle, 
+            item.status === 'sold' && { color: 'red', textDecorationLine: 'line-through' }
+          ]}
+          numberOfLines={1}
+        >
           {item.title}
         </Text>
-        <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+        <Text style={styles.itemPrice}>
+          {item.status === 'sold' ? 'SOLD' : `$${item.price.toFixed(2)}`}
+        </Text>
       </View>
     </TouchableOpacity>
   );

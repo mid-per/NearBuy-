@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
 });
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('test@example.com');
+  const [email, setEmail] = useState('user1@example.com');
   const [password, setPassword] = useState('testpassword');
   const [isLoading, setIsLoading] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);

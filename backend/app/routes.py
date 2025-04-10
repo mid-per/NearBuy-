@@ -149,6 +149,11 @@ def get_user(user_id):
     # Calculate average rating
     ratings = [t.rating for t in user.sales if t.rating is not None]
     avg_rating = round(sum(ratings) / len(ratings), 1) if ratings else 0
+
+    listings_count = Listing.query.filter_by(
+        seller_id=user_id,
+        status='active'
+    ).count()
     
     return jsonify({
         "id": user.id,
@@ -156,7 +161,7 @@ def get_user(user_id):
         "name": user.name,
         "avatar": user.avatar,
         "rating": avg_rating,
-        "listings_count": len(user.listings),
+        "listings_count": listings_count,
         "is_admin": user.is_admin
     }), 200
 
@@ -363,7 +368,7 @@ def admin_remove_listing(listing_id):
 def get_listing(listing_id):
     try:
         listing = Listing.query.get(listing_id)
-        if not listing or listing.status != 'active':
+        if not listing:  # Only reject if listing doesn't exist at all
             return jsonify({"error": "Listing not found"}), 404
             
         return jsonify(listing.to_dict()), 200
@@ -382,12 +387,21 @@ def search_listings():
         category = request.args.get('category', '').strip()
         min_price = request.args.get('min_price')
         max_price = request.args.get('max_price')
-        status = request.args.get('status', 'active')
-        seller_id = request.args.get('seller_id')  # Add this line
+        status = request.args.get('status')  # Remove default value
+        seller_id = request.args.get('seller_id')
         
         # Base query
-        listings_query = Listing.query.filter(Listing.status == status)
+        listings_query = Listing.query
         
+        # Special behavior for YourListingsScreen (seller's own listings)
+        if seller_id:
+            # Only apply status filter if explicitly requested
+            if status:
+                listings_query = listings_query.filter(Listing.status == status)
+        else:
+            # Default behavior for marketplace: only show active listings
+            listings_query = listings_query.filter(Listing.status == 'active')
+            
         # Filter by seller_id if provided
         if seller_id:
             listings_query = listings_query.filter(Listing.seller_id == int(seller_id))
@@ -427,6 +441,18 @@ def search_listings():
         return jsonify({"error": "Search failed"}), 500
 
 #transaction
+@bp.route('/transactions', methods=['GET'])
+def get_transactions():
+    listing_id = request.args.get('listing_id')
+    
+    query = Transaction.query
+    
+    if listing_id:
+        query = query.filter_by(listing_id=listing_id)
+    
+    transactions = query.all()
+    return jsonify([t.to_dict() for t in transactions]), 200
+
 # Generate QR (Seller)
 @bp.route('/transactions/qr', methods=['POST'])
 @jwt_required()
@@ -499,7 +525,12 @@ def confirm_transaction():
     transaction.buyer_id = current_user_id
     transaction.completed = True
     transaction.completed_at = datetime.now(timezone.utc)
-    
+
+     # Update listing status
+    listing = Listing.query.get(transaction.listing_id)
+    if listing:
+        listing.status = 'sold'
+
     db.session.commit()
     
     return jsonify({

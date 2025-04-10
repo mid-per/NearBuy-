@@ -95,13 +95,6 @@ export default function HomeScreen() {
         <View style={styles.buttonRow}>
           <TouchableOpacity 
             style={styles.button}
-            onPress={() => navigation.navigate('QRGenerate', { listingId: 'default' })}
-          >
-            <Text style={styles.buttonText}>Generate QR</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.button}
             onPress={() => navigation.navigate('QRScanner')}
           >
             <Text style={styles.buttonText}>Scan QR</Text>

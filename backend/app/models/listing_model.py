@@ -12,7 +12,7 @@ class Listing(db.Model):
     seller_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime(timezone=True), onupdate=lambda: datetime.now(timezone.utc))  # Track updates
-    status = db.Column(db.String(20), default='active')  # active/removed/flagged
+    status = db.Column(db.String(20), default='active')  # active/removed/flagged/sold
     moderator_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     removal_reason = db.Column(db.String(200), nullable=True)  # Reason for admin removal
 
