@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Alert, View, Text, ActivityIndicator, StyleSheet, Button } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import client from '@/api/client';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/types/navigation';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AxiosError } from 'axios';
+import { useUser } from '@/contexts/UserContext';
 
 type QRGenerateScreenProp = NativeStackNavigationProp<RootStackParamList, 'QRGenerate'>;
 
@@ -30,16 +31,21 @@ export default function QRGenerateScreen() {
   const route = useRoute();
   const { listingId } = route.params as { listingId: string };
   const navigation = useNavigation<QRGenerateScreenProp>();
+  const { user } = useUser();
 
   useEffect(() => {
     const generateQR = async () => {
       try {
+        if (!user) {
+          throw new Error('User not authenticated');
+        }
+
         setIsLoading(true);
         setError('');
         
         const response = await client.post('/transactions/qr', {
-          listing_id: listingId,
-          buyer_id: 1 // TEMPORARY - replace with actual buyer ID
+          listing_id: listingId
+          // No buyer_id needed - will be set when scanned
         });
 
         if (!response.data?.qr_code) {

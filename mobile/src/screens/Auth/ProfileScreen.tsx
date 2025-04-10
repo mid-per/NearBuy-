@@ -17,6 +17,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import client from '@/api/client';
 import { useUser } from '@/contexts/UserContext';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ProfileScreenProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -81,6 +82,13 @@ const styles = StyleSheet.create({
     right: 0,
     padding: 10,
   },
+  logoutButton: {
+    backgroundColor: '#FF3B30',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+  },
   button: {
     backgroundColor: '#007AFF',
     padding: 15,
@@ -97,7 +105,7 @@ const styles = StyleSheet.create({
 
 export default function ProfileScreen() {
   const navigation = useNavigation<ProfileScreenProp>();
-  const { user } = useUser();
+  const { user, logout } = useUser();
   const [profile, setProfile] = useState({
     name: '',
     avatar: '',
@@ -176,6 +184,16 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout(); // Use the logout function from UserContext
+      navigation.navigate('Login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      Alert.alert('Error', 'Failed to logout');
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -211,7 +229,7 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>My Listings</Text>
         <TouchableOpacity 
           style={styles.button}
-          onPress={() => navigation.navigate('YourListings' as never)}
+          onPress={() => navigation.navigate('YourListings')}
         >
           <Text style={styles.buttonText}>View My Listings</Text>
         </TouchableOpacity>
@@ -224,6 +242,12 @@ export default function ProfileScreen() {
           onPress={() => setIsEditing(true)}
         >
           <Text style={styles.buttonText}>Edit Profile</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.logoutButton}
+          onPress={handleLogout}
+        >
+          <Text style={styles.buttonText}>Log Out</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

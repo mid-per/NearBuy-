@@ -426,65 +426,62 @@ def search_listings():
 # Generate QR (Seller)
 @bp.route('/transactions/qr', methods=['POST'])
 @jwt_required()
-def generate_qr():
-    try:
-        current_user = User.query.get(int(get_jwt_identity()))
-        data = request.get_json()
+def generate_qr_code():
+    current_user_id = get_jwt_identity()
+    data = request.get_json()
+    
+    if not data or 'listing_id' not in data:
+        return jsonify({"error": "Listing ID required"}), 400
         
-        if not data or 'buyer_id' not in data or 'listing_id' not in data:
-            return jsonify({"error": "Buyer ID and listing ID required"}), 400
-            
-        # Verify listing belongs to current user
-        listing = Listing.query.filter_by(
-            id=data['listing_id'],
-            seller_id=current_user.id
-        ).first()
+    listing = Listing.query.filter_by(
+        id=data['listing_id'],
+        seller_id=current_user_id
+    ).first()
+    
+    if not listing:
+        return jsonify({"error": "Listing not found or not owned by user"}), 404
         
-        if not listing:
-            return jsonify({"error": "Listing not found or not owned by user"}), 404
-            
-        transaction = Transaction(
-            qr_code=f"nearbuy:{uuid4().hex}",
-            seller_id=current_user.id,
-            buyer_id=data['buyer_id'],
-            listing_id=data['listing_id']
-        )
-        
-        db.session.add(transaction)
-        db.session.commit()
-        return jsonify({
-            "qr_code": transaction.qr_code,
-            "transaction_id": transaction.id
-        }), 201 
-        
-    except Exception as e:
-        logger.error(f"QR generation failed: {str(e)}", exc_info=True)
-        return jsonify({
-            "error": "QR generation failed",
-    }), 500
+    transaction = Transaction(
+        qr_code=f"nearbuy:{uuid4().hex}",
+        seller_id=current_user_id,
+        listing_id=data['listing_id'],
+        # No buyer_id yet - will be set when scanned
+    )
+    
+    db.session.add(transaction)
+    db.session.commit()
+    
+    return jsonify({
+        "qr_code": transaction.qr_code,
+        "transaction_id": transaction.id
+    }), 201
 
 @bp.route('/transactions/confirm', methods=['POST'])
 @jwt_required()
 def confirm_transaction():
-    """Mark transaction as complete via QR scan"""
-    current_user = User.query.get(int(get_jwt_identity()))
+    current_user_id = get_jwt_identity()
     data = request.get_json()
     
     if not data or 'qr_code' not in data:
         return jsonify({"error": "QR code required"}), 400
     
+    if not data['qr_code'].startswith('nearbuy:'):
+        return jsonify({"error": "Invalid QR code format"}), 400
+    
+    transaction_id = data['qr_code'].split(':')[1]
+    
     transaction = Transaction.query.filter_by(
         qr_code=data['qr_code'],
-        buyer_id=current_user.id
+        completed=False
     ).first()
     
     if not transaction:
         return jsonify({"error": "Transaction not found"}), 404
         
-    if transaction.completed:
-        return jsonify({"error": "Transaction already completed"}), 400
-    
-    # QR expiration check (1 hour)
+    if transaction.seller_id == current_user_id:
+        return jsonify({"error": "Cannot confirm your own transaction"}), 403
+        
+    # Check if QR expired (1 hour limit)
     expiration_time = transaction.created_at.replace(tzinfo=timezone.utc) + timedelta(hours=1)
     current_time = datetime.now(timezone.utc)
     
@@ -494,8 +491,11 @@ def confirm_transaction():
             "details": f"Expired at {expiration_time.isoformat()}"
         }), 410
     
+    # Update transaction
+    transaction.buyer_id = current_user_id
     transaction.completed = True
     transaction.completed_at = datetime.now(timezone.utc)
+    
     db.session.commit()
     
     return jsonify({
@@ -503,6 +503,7 @@ def confirm_transaction():
         "listing_id": transaction.listing_id,
         "seller_id": transaction.seller_id
     }), 200
+
 
 @bp.route('/transactions/history', methods=['GET'])
 @jwt_required()

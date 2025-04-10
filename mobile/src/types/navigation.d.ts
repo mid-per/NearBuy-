@@ -8,7 +8,7 @@ export type RootStackParamList = {
   YourListings: undefined;
   Listings: undefined;
   CreateListing: undefined;
-  QRGenerate: { listingId?: string };
+  QRGenerate: { listingId: string }; 
   QRScanner: undefined;
   ListingDetails: { listingId: number };
   Inbox: undefined;

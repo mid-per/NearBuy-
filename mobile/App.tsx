@@ -16,7 +16,6 @@ import { RootStackParamList } from '@/types/navigation';
 import ListingDetailsScreen from '@/screens/Listings/ListingDetailsScreen';
 import ChatScreen from '@/screens/Chat/ChatScreen';
 import { UserProvider } from '@/contexts/UserContext';
-import CustomBackButton from '@/components/CustomBackButton';
 import ProfileScreen from '@/screens/Auth/ProfileScreen';
 import YourListingsScreen from '@/screens/Listings/YourListingsScreen';
 
@@ -58,12 +57,6 @@ export default function App() {
             headerBackTitle: '',
             animation: 'fade', // Smoother transitions
             animationDuration: 150, // Faster animation
-            headerLeft: (props) => {
-              if (props.canGoBack) {
-                return <CustomBackButton />;
-              }
-              return null;
-            }
           }}
         >
           <Stack.Screen 
@@ -71,6 +64,7 @@ export default function App() {
             component={HomeScreen} 
             options={{ 
               title: 'NearBuy',
+              headerBackVisible: false 
             }} 
           />
           <Stack.Screen 
@@ -81,12 +75,17 @@ export default function App() {
           <Stack.Screen 
             name="YourListings" 
             component={YourListingsScreen} 
-            options={{ title: 'Your Listings' }} 
+            options={{ 
+              title: 'Your Listings',
+            }} 
           />
           <Stack.Screen 
             name="ListingDetails" 
             component={ListingDetailsScreen} 
-            options={{ title: 'Listing Details' }} 
+            options={{ 
+              title: 'Listing Details',
+              headerBackVisible: false 
+             }} 
           />
           <Stack.Screen 
             name="CreateListing" 
@@ -108,7 +107,7 @@ export default function App() {
             options={{ title: 'Register' }} 
           />
           <Stack.Screen 
-            name="QRGenerate" 
+            name="QRGenerate"
             component={QRGenerateScreen} 
             options={{ title: 'Generate QR Code' }} 
           />

@@ -52,15 +52,11 @@ export default function QRScannerScreen() {
     try {
       const response = await client.post('/transactions/confirm', { qr_code: data });
       
-      if (response.status === 200) {
-        Alert.alert(
-          'Success', 
-          'Transaction confirmed!',
-          [{ text: 'OK', onPress: () => navigation.navigate('Home') }]
-        );
-      } else {
-        throw new Error(`Unexpected status: ${response.status}`);
-      }
+      Alert.alert(
+        'Success', 
+        'Transaction confirmed!',
+        [{ text: 'OK', onPress: () => navigation.navigate('Home') }]
+      );
     } catch (error: unknown) {
       let errorMessage = 'Failed to confirm transaction';
       
@@ -73,7 +69,7 @@ export default function QRScannerScreen() {
       }
       
       Alert.alert('Error', errorMessage);
-      setScanned(false); // Allow rescan after error
+      setScanned(false);
     } finally {
       setIsProcessing(false);
     }
