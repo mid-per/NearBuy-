@@ -499,9 +499,10 @@ def confirm_transaction():
     db.session.commit()
     
     return jsonify({
-        "message": "Transaction confirmed",
-        "listing_id": transaction.listing_id,
-        "seller_id": transaction.seller_id
+        "transaction_id": transaction.id,
+        "seller_id": transaction.seller_id,
+        "seller_name": transaction.seller.name,  
+        "seller_avatar": transaction.seller.avatar  
     }), 200
 
 
@@ -548,48 +549,6 @@ def transaction_history():
             "error": "Failed to load transaction history",
             "details": "Please try again later"
         }), 500
-    
-# Rate a Transaction (Buyer only)
-@bp.route('/transactions/<int:transaction_id>/rate', methods=['POST'])
-@jwt_required()
-def rate_transaction(transaction_id):
-    try:
-        current_user = User.query.get(int(get_jwt_identity()))
-        data = request.get_json()
-        
-        # Validate input
-        if not data or 'rating' not in data:
-            return jsonify({"error": "Rating required"}), 400
-        
-        rating = int(data['rating'])
-        if rating < 1 or rating > 5:
-            return jsonify({"error": "Rating must be 1-5"}), 400
-        
-        # Fetch transaction (must be completed and belong to buyer)
-        transaction = Transaction.query.filter_by(
-            id=transaction_id,
-            buyer_id=current_user.id,
-            completed=True
-        ).first()
-        
-        if not transaction:
-            return jsonify({"error": "Transaction not found or not eligible for rating"}), 404
-        
-        # Update rating/feedback
-        transaction.rating = rating
-        transaction.feedback = data.get('feedback', '').strip()
-        db.session.commit()
-        
-        return jsonify({
-            "message": "Rating submitted",
-            "transaction_id": transaction.id,
-            "seller_id": transaction.seller_id
-        }), 200
-    
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Rating failed: {str(e)}", exc_info=True)
-        return jsonify({"error": "Failed to submit rating"}), 500
     
 # Dispute Transaction (Buyer)
 @bp.route('/transactions/<int:tx_id>/dispute', methods=['POST'])
@@ -673,6 +632,37 @@ def get_seller_rating(seller_id):
     except Exception as e:
         logger.error(f"Failed to fetch ratings: {str(e)}", exc_info=True)
         return jsonify({"error": "Failed to calculate rating"}), 500
+    
+@bp.route('/transactions/<int:tx_id>/rate', methods=['POST'])
+@jwt_required()
+def rate_transaction(tx_id):
+    current_user_id = get_jwt_identity()
+    data = request.get_json()
+    
+    transaction = Transaction.query.filter_by(
+        id=tx_id,
+        buyer_id=current_user_id,
+        completed=True
+    ).first()
+    
+    if not transaction:
+        return jsonify({"error": "Transaction not found"}), 404
+        
+    if not data or 'rating' not in data:
+        return jsonify({"error": "Rating required"}), 400
+        
+    rating = int(data['rating'])
+    if rating < 1 or rating > 5:
+        return jsonify({"error": "Rating must be 1-5"}), 400
+        
+    transaction.rating = rating
+    transaction.feedback = data.get('feedback', '')
+    db.session.commit()
+    
+    return jsonify({
+        "message": "Rating submitted",
+        "seller_id": transaction.seller_id
+    }), 200
     
 # Admin: Delete User
 @bp.route('/admin/users/<int:user_id>', methods=['DELETE'])

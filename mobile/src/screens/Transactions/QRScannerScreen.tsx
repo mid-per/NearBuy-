@@ -52,11 +52,14 @@ export default function QRScannerScreen() {
     try {
       const response = await client.post('/transactions/confirm', { qr_code: data });
       
-      Alert.alert(
-        'Success', 
-        'Transaction confirmed!',
-        [{ text: 'OK', onPress: () => navigation.navigate('Home') }]
-      );
+      navigation.navigate('Rating', {
+        transactionId: response.data.transaction_id, // Make sure your backend returns this
+        seller: {
+          id: response.data.seller_id,
+          name: response.data.seller_name || `Seller ${response.data.seller_id}`,
+          avatar: response.data.seller_avatar
+        }
+      });
     } catch (error: unknown) {
       let errorMessage = 'Failed to confirm transaction';
       

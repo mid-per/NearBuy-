@@ -19,6 +19,14 @@ export type RootStackParamList = {
     buyerId: number; // Add this
     listingTitle: string;
   };
+  Rating: {
+    transactionId: number;
+    seller: {
+      id: number;
+      name: string;
+      avatar?: string;
+    };
+  };
   Profile: undefined;
   // Add other screens here as you create them
 };

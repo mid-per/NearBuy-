@@ -18,6 +18,7 @@ import ChatScreen from '@/screens/Chat/ChatScreen';
 import { UserProvider } from '@/contexts/UserContext';
 import ProfileScreen from '@/screens/Auth/ProfileScreen';
 import YourListingsScreen from '@/screens/Listings/YourListingsScreen';
+import RatingScreen from '@/screens/Transactions/RatingScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -129,6 +130,11 @@ export default function App() {
             name="Inbox" 
             component={InboxScreen} 
             options={{ title: 'Your Messages' }} 
+          />
+          <Stack.Screen 
+            name="Rating" 
+            component={RatingScreen}
+            options={{ title: 'Rate Seller' }}
           />
           <Stack.Screen 
             name="Profile" 
