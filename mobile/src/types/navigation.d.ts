@@ -5,6 +5,7 @@ export type RootStackParamList = {
   Register: undefined; 
   Home: undefined;
   Marketplace: undefined;
+  YourListings: undefined;
   Listings: undefined;
   CreateListing: undefined;
   QRGenerate: { listingId?: string };

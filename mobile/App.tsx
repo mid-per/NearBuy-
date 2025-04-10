@@ -17,8 +17,8 @@ import ListingDetailsScreen from '@/screens/Listings/ListingDetailsScreen';
 import ChatScreen from '@/screens/Chat/ChatScreen';
 import { UserProvider } from '@/contexts/UserContext';
 import CustomBackButton from '@/components/CustomBackButton';
-import { enableScreens } from 'react-native-screens';
 import ProfileScreen from '@/screens/Auth/ProfileScreen';
+import YourListingsScreen from '@/screens/Listings/YourListingsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -77,6 +77,11 @@ export default function App() {
             name="Marketplace" 
             component={MarketplaceScreen} 
             options={{ title: 'Browse Listings' }} 
+          />
+          <Stack.Screen 
+            name="YourListings" 
+            component={YourListingsScreen} 
+            options={{ title: 'Your Listings' }} 
           />
           <Stack.Screen 
             name="ListingDetails" 

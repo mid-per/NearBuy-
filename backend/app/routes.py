@@ -369,6 +369,7 @@ def get_listing(listing_id):
         return jsonify({"error": "Failed to fetch listing"}), 500
     
 # Search/Filter Listings (GET)
+# In routes.py, update the search_listings function:
 @bp.route('/listings/search', methods=['GET'])
 def search_listings():
     try:
@@ -378,11 +379,16 @@ def search_listings():
         min_price = request.args.get('min_price')
         max_price = request.args.get('max_price')
         status = request.args.get('status', 'active')
+        seller_id = request.args.get('seller_id')  # Add this line
         
         # Base query
         listings_query = Listing.query.filter(Listing.status == status)
         
-        # Apply filters
+        # Filter by seller_id if provided
+        if seller_id:
+            listings_query = listings_query.filter(Listing.seller_id == int(seller_id))
+            
+        # Apply other filters (keep existing code)
         if query:
             listings_query = listings_query.filter(
                 Listing.title.ilike(f'%{query}%') | 

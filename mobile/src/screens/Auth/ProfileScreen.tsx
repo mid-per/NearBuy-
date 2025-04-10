@@ -211,7 +211,7 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>My Listings</Text>
         <TouchableOpacity 
           style={styles.button}
-          onPress={() => navigation.navigate('Marketplace' as never)}
+          onPress={() => navigation.navigate('YourListings' as never)}
         >
           <Text style={styles.buttonText}>View My Listings</Text>
         </TouchableOpacity>
