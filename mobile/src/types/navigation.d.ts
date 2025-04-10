@@ -10,6 +10,7 @@ export type RootStackParamList = {
   QRGenerate: { listingId: string };
   QRScanner: undefined;
   ListingDetails: { listingId: number };
+  Inbox: undefined;
   Chat: { 
     roomId: number;
     listingId: number;

@@ -87,6 +87,43 @@ def initiate_chat():
         print(f"Error in initiate_chat: {str(e)}")  # Debug log
         db.session.rollback()
         return jsonify({"error": "Failed to initiate chat", "details": str(e)}), 500
+    
+@bp.route('/', methods=['GET'])
+@jwt_required()
+def get_user_chats():
+    current_user_id = int(get_jwt_identity())
+    
+    # Get all chat rooms where user is either buyer or seller
+    chats = db.session.query(
+        ChatRoom,
+        Listing.title.label('listing_title')
+    ).join(
+        Transaction,
+        Transaction.id == ChatRoom.transaction_id
+    ).join(
+        Listing,
+        Listing.id == ChatRoom.listing_id
+    ).filter(
+        (Transaction.buyer_id == current_user_id) |
+        (Transaction.seller_id == current_user_id)
+    ).all()
+    
+    # Get last message for each chat
+    result = []
+    for chat, listing_title in chats:
+        last_msg = ChatMessage.query.filter_by(room_id=chat.id)\
+            .order_by(ChatMessage.sent_at.desc()).first()
+            
+        result.append({
+            'id': chat.id,
+            'listing_id': chat.listing_id,
+            'listing_title': listing_title,
+            'seller_id': chat.transaction.seller_id,
+            'last_message': last_msg.content if last_msg else None,
+            'last_message_time': last_msg.sent_at.isoformat() if last_msg else None
+        })
+    
+    return jsonify({'chats': result}), 200
 
 @bp.route('/<int:transaction_id>', methods=['GET'])
 @jwt_required()

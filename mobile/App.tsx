@@ -8,6 +8,7 @@ import CreateListingScreen from '@/screens/Listings/CreateListingScreen';
 import QRGenerateScreen from '@/screens/Transactions/QRGenerateScreen';
 import QRScannerScreen from '@/screens/Transactions/QRScannerScreen';
 import RegisterScreen from '@/screens/Auth/RegisterScreen';
+import InboxScreen from '@/screens/Inbox/InboxScreen';
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
@@ -83,6 +84,11 @@ export default function App() {
             name="Chat" 
             component={ChatScreen}
             options={{ title: 'Chat with Seller' }}
+          />
+          <Stack.Screen 
+            name="Inbox" 
+            component={InboxScreen}
+            options={{ title: 'Inbox' }}
           />
           <Stack.Screen 
             name="QRGenerate" 

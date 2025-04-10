@@ -1,69 +1,92 @@
 import React from 'react';
-import { View, Text, Button, StyleSheet } from 'react-native';
+import { View, Text, Button, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '@/types/navigation';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useUser } from '@/contexts/UserContext';
 
 type HomeScreenProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
     padding: 20,
-    backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   title: {
-    textAlign: 'center',
-    marginBottom: 30,
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
   },
+  buttonContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
   button: {
-    marginVertical: 10,
+    flex: 1,
+    backgroundColor: '#007AFF',
+    padding: 15,
     borderRadius: 8,
-    overflow: 'hidden',
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenProp>();
+  const { user } = useUser();
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome to NearBuy!</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>NearBuy</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Inbox')}>
+          <MaterialIcons name="inbox" size={28} color="#007AFF" />
+        </TouchableOpacity>
+      </View>
 
-      <View style={styles.button}>
-        <Button
-          title="Browse Marketplace"
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity 
+          style={styles.button}
           onPress={() => navigation.navigate('Marketplace')}
-          color="#FF9500"
-        />
-      </View>
-      
-      <View style={styles.button}>
-        <Button
-          title="Create New Listing"
-          onPress={() => navigation.navigate('CreateListing')}
-          color="#FF9500"  // Orange color for primary action
-        />
+        >
+          <Text style={styles.buttonText}>Browse Listings</Text>
+        </TouchableOpacity>
+
+        {user && (
+          <TouchableOpacity 
+            style={styles.button}
+            onPress={() => navigation.navigate('CreateListing')}
+          >
+            <Text style={styles.buttonText}>Sell Item</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <View style={styles.button}>
-        <Button
-          title="Generate QR Code"
-          onPress={() => navigation.navigate('QRGenerate', { listingId: '1' })}
-          color="#007AFF"  // Blue color
-        />
-      </View>
+      <View style={styles.buttonContainer}>
+      <TouchableOpacity 
+        style={styles.button}
+        onPress={() => navigation.navigate('QRGenerate', { listingId: '1' })}
+      >
+        <Text style={styles.buttonText}>Generate QR Code</Text>
+      </TouchableOpacity>
 
-      <View style={styles.button}>
-        <Button
-          title="Scan QR Code"
-          onPress={() => navigation.navigate('QRScanner')}
-          color="#34C759"  // Green color
-        />
-      </View>
+      <TouchableOpacity 
+        style={styles.button}
+        onPress={() => navigation.navigate('QRScanner')}
+      >
+        <Text style={styles.buttonText}>Scan QR Code</Text>
+      </TouchableOpacity>
+    </View>
     </View>
   );
 }
