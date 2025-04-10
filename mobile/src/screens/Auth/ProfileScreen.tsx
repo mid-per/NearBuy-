@@ -8,7 +8,8 @@ import {
   TouchableOpacity, 
   ActivityIndicator,
   ScrollView,
-  Alert
+  Alert,
+  RefreshControl
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '@/types/navigation';
@@ -118,35 +119,51 @@ export default function ProfileScreen() {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        // First try to get profile data
-        try {
-          const response = await client.get(`/users/${user?.id}`);
-          setProfile({
-            name: response.data.name || user?.email.split('@')[0] || 'User',
-            avatar: response.data.avatar || '',
-            rating: response.data.rating || 0,
-            listingsCount: response.data.listings_count || 0,
-          });
-        } catch (profileError) {
-          // Fallback to basic user data if profile endpoint doesn't exist
-          console.log('Profile endpoint not available, using basic user data');
-          setProfile({
-            name: user?.email.split('@')[0] || 'User',
-            avatar: '',
-            rating: 0,
-            listingsCount: 0,
-          });
-        }
+        setIsLoading(true);
+        const response = await client.get(`/users/${user?.id}`);
+        
+        setProfile({
+          name: response.data.name || user?.email.split('@')[0] || 'User',
+          avatar: response.data.avatar || '',
+          rating: response.data.rating || 0,
+          listingsCount: response.data.listings_count || 0,
+        });
+        
       } catch (error) {
         console.error('Failed to load profile:', error);
-        Alert.alert('Error', 'Failed to load profile data');
+        // Fallback to basic data if API fails
+        setProfile({
+          name: user?.email.split('@')[0] || 'User',
+          avatar: '',
+          rating: 0,
+          listingsCount: 0,
+        });
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadProfile();
+    if (user?.id) {
+      loadProfile();
+    }
   }, [user?.id]);
+
+  const handleRefresh = async () => {
+    setIsLoading(true);
+    try {
+      const response = await client.get(`/users/${user?.id}`);
+      setProfile({
+        name: response.data.name || user?.email.split('@')[0] || 'User',
+        avatar: response.data.avatar || '',
+        rating: response.data.rating || 0,
+        listingsCount: response.data.listings_count || 0,
+      });
+    } catch (error) {
+      console.error('Refresh failed:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -203,7 +220,15 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView  
+      style={styles.container}
+      refreshControl={
+        <RefreshControl
+          refreshing={isLoading}
+          onRefresh={handleRefresh}
+        />
+      }
+    >
       <View style={styles.header}>
         <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
           {profile.avatar ? (

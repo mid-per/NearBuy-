@@ -142,17 +142,21 @@ def verify_token():
 @bp.route('/users/<int:user_id>', methods=['GET'])
 @jwt_required()
 def get_user(user_id):
-    current_user_id = int(get_jwt_identity())
-    if current_user_id != user_id:
-        return jsonify({"error": "Unauthorized"}), 403
-        
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
-        
+    
+    # Calculate average rating
+    ratings = [t.rating for t in user.sales if t.rating is not None]
+    avg_rating = round(sum(ratings) / len(ratings), 1) if ratings else 0
+    
     return jsonify({
         "id": user.id,
         "email": user.email,
+        "name": user.name,
+        "avatar": user.avatar,
+        "rating": avg_rating,
+        "listings_count": len(user.listings),
         "is_admin": user.is_admin
     }), 200
 
