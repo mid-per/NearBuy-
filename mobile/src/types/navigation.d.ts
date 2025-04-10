@@ -10,7 +10,11 @@ export type RootStackParamList = {
   QRGenerate: { listingId: string };
   QRScanner: undefined;
   ListingDetails: { listingId: number };
-  Chat: { sellerId: number; listingId: number };
+  Chat: { 
+    roomId: number;
+    listingId: number;
+    sellerId: number;
+  };
   // Add other screens here as you create them
 };
 

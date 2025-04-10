@@ -32,16 +32,26 @@ def admin_required(f):
 
 ###################################################################
 #temporary for testing frontend 
-@bp.route('/create-test-user', methods=['POST'])
-def create_test_user():
-    test_user = User(
-        email='test@example.com',
+@bp.route('/create-test-users', methods=['POST'])
+def create_test_users():
+    # Create two users with different emails but the same password
+    user1 = User(
+        email='user1@example.com',
         password=generate_password_hash('testpassword'),
         is_admin=False
     )
-    db.session.add(test_user)
+    user2 = User(
+        email='user2@example.com',
+        password=generate_password_hash('testpassword'),
+        is_admin=False
+    )
+
+    # Add users to the session and commit the transaction
+    db.session.add(user1)
+    db.session.add(user2)
     db.session.commit()
-    return jsonify({"message": "Test user created"}), 201
+
+    return jsonify({"message": "Test users created"}), 201
 
 @bp.route('/healthcheck')
 def healthcheck():
@@ -84,16 +94,68 @@ def login():
     if not data or 'email' not in data or 'password' not in data:
         return jsonify({"error": "Email and password required"}), 400
         
-    user = authenticate_user(data['email'], data['password'])
-    if not user:
+    user = User.query.filter_by(email=data['email'].lower()).first()
+    if not user or not check_password_hash(user.password, data['password']):
         return jsonify({"error": "Invalid credentials"}), 401
         
+    print(f"Generating token for user: {user.id} {user.email}")  # Debug log
+    
     return jsonify({
         "access_token": create_access_token(identity=str(user.id)),
         "refresh_token": create_refresh_token(identity=str(user.id)),
         "user_id": user.id,
+        "email": user.email,
         "is_admin": user.is_admin
-    })
+    }), 200
+
+@bp.route('/auth/me', methods=['GET'])
+@jwt_required()
+def get_current_user():
+    current_user_id = int(get_jwt_identity())
+    print(f"Token contains user ID: {current_user_id}")  # Debug log
+    
+    current_user = User.query.get(current_user_id)
+    if not current_user:
+        return jsonify({"error": "User not found"}), 404
+        
+    print(f"Returning data for: {current_user.email}")  # Debug log
+    
+    return jsonify({
+        "id": current_user.id,
+        "email": current_user.email,
+        "is_admin": current_user.is_admin
+    }), 200
+
+@bp.route('/auth/verify-token', methods=['GET'])
+@jwt_required()
+def verify_token():
+    current_user = User.query.get(int(get_jwt_identity()))
+    if not current_user:
+        return jsonify({"valid": False}), 401
+        
+    return jsonify({
+        "valid": True,
+        "user_id": current_user.id,
+        "email": current_user.email
+    }), 200
+
+@bp.route('/users/<int:user_id>', methods=['GET'])
+@jwt_required()
+def get_user(user_id):
+    current_user_id = int(get_jwt_identity())
+    if current_user_id != user_id:
+        return jsonify({"error": "Unauthorized"}), 403
+        
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+        
+    return jsonify({
+        "id": user.id,
+        "email": user.email,
+        "is_admin": user.is_admin
+    }), 200
+
 #listing 
 # Create Listing (Seller)
 @bp.route('/listings', methods=['POST'])

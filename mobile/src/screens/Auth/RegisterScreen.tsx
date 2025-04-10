@@ -14,6 +14,8 @@ import { RootStackParamList } from '@/types/navigation';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import client from '@/api/client';
 import { isAxiosError } from 'axios';
+import { useUser } from '@/contexts/UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type RegisterScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -72,9 +74,9 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const navigation = useNavigation<RegisterScreenNavigationProp>();
+  const { setUser } = useUser(); // Moved to top level
 
   const handleRegister = async () => {
-    // Validation checks...
     if (!email || !password || !confirmPassword) {
       setError('Please fill in all fields');
       return;
@@ -103,18 +105,24 @@ export default function RegisterScreen() {
         email, 
         password 
       });
-
+  
       if (response.status === 201) {
-        Alert.alert(
-          'Registration Successful',
-          'Your account has been created. Please login.',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.navigate('Login'),
-            },
-          ],
-        );
+        // Automatically log in after registration
+        const loginResponse = await client.post('/login', { email, password });
+        await AsyncStorage.setItem('access_token', loginResponse.data.access_token);
+        
+        // Set authorization header for future requests
+        client.defaults.headers.common['Authorization'] = `Bearer ${loginResponse.data.access_token}`;
+        
+        // Update user context
+        setUser({
+          id: loginResponse.data.user_id,
+          email: email,
+          isAdmin: false
+        });
+        
+        // Navigate after all state is updated
+        navigation.navigate('Login');
       }
     } catch (error) {
       let errorMessage = 'Registration failed. Please try again.';

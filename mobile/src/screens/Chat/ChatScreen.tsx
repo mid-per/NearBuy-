@@ -1,28 +1,43 @@
-// src/screens/Chat/ChatScreen.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  StyleSheet, 
+  FlatList, 
+  TouchableOpacity, 
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform
+} from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '@/types/navigation';
 import { RouteProp } from '@react-navigation/native';
 import { ChatMessage } from '@/types/chat';
 import { MaterialIcons } from '@expo/vector-icons';
+import client from '@/api/client';
+import { useUser } from '@/contexts/UserContext';
+import socket from '@/utils/socket';
 
 type ChatScreenRouteProp = RouteProp<RootStackParamList, 'Chat'>;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
     backgroundColor: '#f5f5f5',
   },
   messageList: {
     flex: 1,
+    padding: 10,
   },
   inputContainer: {
     flexDirection: 'row',
     padding: 10,
     alignItems: 'center',
     backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
   },
   input: {
     flex: 1,
@@ -34,6 +49,17 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     padding: 8,
+  },
+  emptyChatContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyChatText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
   messageBubble: {
     maxWidth: '80%',
@@ -62,89 +88,131 @@ const styles = StyleSheet.create({
 
 export default function ChatScreen() {
   const route = useRoute<ChatScreenRouteProp>();
-  const { sellerId, listingId } = route.params;
+  const { roomId, sellerId, listingId } = route.params;
+  const { user } = useUser();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Mock data - replace with actual API calls
   useEffect(() => {
     const loadMessages = async () => {
       try {
-        // TODO: Replace with actual API call
-        const mockMessages: ChatMessage[] = [
-          {
-            id: '1',
-            text: 'Hello, is this still available?',
-            senderId: 123, // This would be the buyer's ID
-            timestamp: new Date(Date.now() - 3600000),
-            isCurrentUser: false,
-          },
-          {
-            id: '2',
-            text: 'Yes, it is!',
-            senderId: sellerId,
-            timestamp: new Date(),
-            isCurrentUser: true,
-          },
-        ];
-        setMessages(mockMessages);
-      } catch (error) {
-        console.error('Failed to load messages:', error);
+        if (!user || !roomId) return;
+        
+        const response = await client.get(`/chats/${roomId}/messages`);
+        setMessages(response.data.messages.map((msg: any) => ({
+          id: msg.id.toString(),
+          text: msg.content,
+          senderId: msg.sender_id,
+          timestamp: new Date(msg.sent_at),
+          isCurrentUser: msg.sender_id === user.id,
+        })));
+      } catch (err) {
+        console.error('Failed to load messages:', err);
+        setError('Failed to load chat messages');
       } finally {
         setIsLoading(false);
       }
     };
 
     loadMessages();
-  }, [sellerId, listingId]);
 
-  const handleSendMessage = () => {
-    if (message.trim()) {
-      const newMessage: ChatMessage = {
+    socket.emit('join', { room_id: roomId });
+    
+    const handleNewMessage = (msg: any) => {
+      setMessages(prev => [...prev, {
+        id: msg.id.toString(),
+        text: msg.content,
+        senderId: msg.sender_id,
+        timestamp: new Date(msg.timestamp),
+        isCurrentUser: msg.sender_id === user?.id,
+      }]);
+    };
+
+    socket.on('new_message', handleNewMessage);
+
+    return () => {
+      socket.off('new_message', handleNewMessage);
+      socket.emit('leave', { room_id: roomId });
+    };
+  }, [roomId, user?.id]);
+
+  const handleSendMessage = async () => {
+    if (!message.trim() || !user || !roomId) return;
+
+    try {
+      const newMessage = {
         id: Date.now().toString(),
         text: message,
-        senderId: 123, // This should be the current user's ID
+        senderId: user.id,
         timestamp: new Date(),
         isCurrentUser: true,
       };
-      setMessages([...messages, newMessage]);
+
+      setMessages(prev => [...prev, newMessage]);
       setMessage('');
-      // TODO: Send message to backend
+
+      socket.emit('send_message', {
+        room_id: roomId,
+        user_id: user.id,
+        content: message
+      });
+
+      await client.post(`/chats/${roomId}/messages`, {
+        content: message,
+      });
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      Alert.alert('Error', 'Failed to send message');
+      setMessages(prev => prev.slice(0, -1));
     }
   };
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" />
       </View>
     );
   }
 
+  if (error) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: 'red', fontSize: 16 }}>{error}</Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+      keyboardVerticalOffset={90}
+    >
       <FlatList
-        style={styles.messageList}
         data={messages}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={messages.length === 0 ? styles.emptyChatContainer : styles.messageList}
         renderItem={({ item }) => (
-          <View
-            style={[
-              styles.messageBubble,
-              item.isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage,
-            ]}
-          >
-            <Text
-              style={[
-                styles.messageText,
-                item.isCurrentUser ? styles.currentUserText : styles.otherUserText,
-              ]}
-            >
+          <View style={[
+            styles.messageBubble,
+            item.isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage
+          ]}>
+            <Text style={[
+              styles.messageText,
+              item.isCurrentUser ? styles.currentUserText : styles.otherUserText
+            ]}>
               {item.text}
             </Text>
           </View>
         )}
+        ListEmptyComponent={
+          <View style={styles.emptyChatContainer}>
+            <Text style={styles.emptyChatText}>No messages yet. Start the conversation!</Text>
+          </View>
+        }
       />
 
       <View style={styles.inputContainer}>
@@ -153,12 +221,14 @@ export default function ChatScreen() {
           value={message}
           onChangeText={setMessage}
           placeholder="Type your message..."
+          placeholderTextColor="#999"
           onSubmitEditing={handleSendMessage}
+          enablesReturnKeyAutomatically
         />
         <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
           <MaterialIcons name="send" size={24} color="#007AFF" />
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

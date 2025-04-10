@@ -14,6 +14,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { RootStackParamList } from '@/types/navigation';
 import ListingDetailsScreen from '@/screens/Listings/ListingDetailsScreen';
 import ChatScreen from '@/screens/Chat/ChatScreen';
+import {UserProvider} from '@/contexts/UserContext';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -45,54 +46,56 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName="Login">
-        <Stack.Screen 
-          name="Login" 
-          component={LoginScreen}
-          options={{ title: 'NearBuy Login' }}
-        />
-        <Stack.Screen 
-          name="Register" 
-          component={RegisterScreen}
-          options={{ title: 'Create Account' }}
-        />
-        <Stack.Screen 
-          name="Home" 
-          component={HomeScreen}
-          options={{ title: 'Welcome' }}
-        />
-        <Stack.Screen 
-          name="Marketplace" 
-          component={MarketplaceScreen}
-          options={{ title: 'Browse Listings' }}
-        />
-        <Stack.Screen 
-          name="CreateListing" 
-          component={CreateListingScreen}
-          options={{ title: 'Create Listing' }}
-        />
-        <Stack.Screen 
-          name="ListingDetails" 
-          component={ListingDetailsScreen}
-          options={{ title: 'Listing Details' }}
-        />
-        <Stack.Screen 
-          name="Chat" 
-          component={ChatScreen}
-          options={{ title: 'Chat with Seller' }}
-        />
-        <Stack.Screen 
-          name="QRGenerate" 
-          component={QRGenerateScreen}
-          options={{ title: 'Generate QR Code' }}
-        />
-        <Stack.Screen 
-          name="QRScanner" 
-          component={QRScannerScreen}
-          options={{ title: 'Scan QR Code' }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <UserProvider>
+      <NavigationContainer>
+        <Stack.Navigator initialRouteName="Login">
+          <Stack.Screen 
+            name="Login" 
+            component={LoginScreen}
+            options={{ title: 'NearBuy Login' }}
+          />
+          <Stack.Screen 
+            name="Register" 
+            component={RegisterScreen}
+            options={{ title: 'Create Account' }}
+          />
+          <Stack.Screen 
+            name="Home" 
+            component={HomeScreen}
+            options={{ title: 'Welcome' }}
+          />
+          <Stack.Screen 
+            name="Marketplace" 
+            component={MarketplaceScreen}
+            options={{ title: 'Browse Listings' }}
+          />
+          <Stack.Screen 
+            name="CreateListing" 
+            component={CreateListingScreen}
+            options={{ title: 'Create Listing' }}
+          />
+          <Stack.Screen 
+            name="ListingDetails" 
+            component={ListingDetailsScreen}
+            options={{ title: 'Listing Details' }}
+          />
+          <Stack.Screen 
+            name="Chat" 
+            component={ChatScreen}
+            options={{ title: 'Chat with Seller' }}
+          />
+          <Stack.Screen 
+            name="QRGenerate" 
+            component={QRGenerateScreen}
+            options={{ title: 'Generate QR Code' }}
+          />
+          <Stack.Screen 
+            name="QRScanner" 
+            component={QRScannerScreen}
+            options={{ title: 'Scan QR Code' }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </UserProvider>
   );
 }

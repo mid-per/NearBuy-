@@ -15,6 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import client from '@/api/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isAxiosError } from 'axios';
+import { useUser } from '@/contexts/UserContext';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -60,32 +61,56 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const navigation = useNavigation<LoginScreenNavigationProp>();
-
+  const { setUser } = useUser();
+  
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please enter both email and password');
       return;
     }
-
+  
     setIsLoading(true);
     try {
-      const response = await client.post('/login', { 
-        email, 
-        password 
-      });
-      
-      await AsyncStorage.setItem('access_token', response.data.access_token);
-      navigation.navigate('Home');
+      // Clear any existing token first
+      await AsyncStorage.removeItem('access_token');
+      delete client.defaults.headers.common['Authorization'];
+  
+      const response = await client.post('/login', { email, password });
+      console.log('Login response for:', email, 'Data:', response.data);
+  
+      if (response.data.user_id && response.data.access_token) {
+        // Verify the token matches the logged-in user
+        if (response.data.email !== email) {
+          throw new Error('Server returned mismatched user data');
+        }
+  
+        await AsyncStorage.setItem('access_token', response.data.access_token);
+        client.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
+        
+        setUser({
+          id: response.data.user_id,
+          email: response.data.email,
+          isAdmin: response.data.is_admin || false
+        });
+  
+        navigation.navigate('Home');
+      }
     } catch (error) {
+      console.error('Full login error:', error);
+      await AsyncStorage.removeItem('access_token');
+      delete client.defaults.headers.common['Authorization'];
+      
       let errorMessage = 'Login failed';
       
       if (isAxiosError(error)) {
+        // TypeScript now knows error is AxiosError
         errorMessage = error.response?.data?.error || error.message;
       } else if (error instanceof Error) {
+        // TypeScript now knows error is Error
         errorMessage = error.message;
       }
-
-      Alert.alert('Error', errorMessage);
+  
+      Alert.alert('Login Failed', errorMessage);
     } finally {
       setIsLoading(false);
     }
