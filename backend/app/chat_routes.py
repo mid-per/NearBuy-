@@ -80,7 +80,8 @@ def initiate_chat():
             "room_id": transaction.chat_room.id,
             "transaction_id": transaction.id,
             "listing_id": listing.id,
-            "seller_id": listing.seller_id
+            "seller_id": listing.seller_id,
+            "listing_title": listing.title
         }), 200
 
     except Exception as e:

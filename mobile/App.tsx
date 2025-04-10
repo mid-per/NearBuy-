@@ -15,7 +15,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import { RootStackParamList } from '@/types/navigation';
 import ListingDetailsScreen from '@/screens/Listings/ListingDetailsScreen';
 import ChatScreen from '@/screens/Chat/ChatScreen';
-import {UserProvider} from '@/contexts/UserContext';
+import { UserProvider } from '@/contexts/UserContext';
+import CustomBackButton from '@/components/CustomBackButton';
+import { enableScreens } from 'react-native-screens';
+import ProfileScreen from '@/screens/Auth/ProfileScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -49,56 +52,84 @@ export default function App() {
   return (
     <UserProvider>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="Login">
-          <Stack.Screen 
-            name="Login" 
-            component={LoginScreen}
-            options={{ title: 'NearBuy Login' }}
-          />
-          <Stack.Screen 
-            name="Register" 
-            component={RegisterScreen}
-            options={{ title: 'Create Account' }}
-          />
+        <Stack.Navigator 
+          initialRouteName="Login"
+          screenOptions={{
+            headerBackTitle: '',
+            animation: 'fade', // Smoother transitions
+            animationDuration: 150, // Faster animation
+            headerLeft: (props) => {
+              if (props.canGoBack) {
+                return <CustomBackButton />;
+              }
+              return null;
+            }
+          }}
+        >
           <Stack.Screen 
             name="Home" 
-            component={HomeScreen}
-            options={{ title: 'Welcome' }}
+            component={HomeScreen} 
+            options={{ 
+              title: 'NearBuy',
+            }} 
           />
           <Stack.Screen 
             name="Marketplace" 
-            component={MarketplaceScreen}
-            options={{ title: 'Browse Listings' }}
-          />
-          <Stack.Screen 
-            name="CreateListing" 
-            component={CreateListingScreen}
-            options={{ title: 'Create Listing' }}
+            component={MarketplaceScreen} 
+            options={{ title: 'Browse Listings' }} 
           />
           <Stack.Screen 
             name="ListingDetails" 
-            component={ListingDetailsScreen}
-            options={{ title: 'Listing Details' }}
+            component={ListingDetailsScreen} 
+            options={{ title: 'Listing Details' }} 
           />
           <Stack.Screen 
-            name="Chat" 
-            component={ChatScreen}
-            options={{ title: 'Chat with Seller' }}
+            name="CreateListing" 
+            component={CreateListingScreen} 
+            options={{ title: 'Create Listing' }} 
           />
           <Stack.Screen 
-            name="Inbox" 
-            component={InboxScreen}
-            options={{ title: 'Inbox' }}
+            name="Login" 
+            component={LoginScreen} 
+            options={{ 
+              title: 'Login',
+              headerBackVisible: false,
+              headerLeft: () => null
+            }} 
+          />
+          <Stack.Screen 
+            name="Register" 
+            component={RegisterScreen} 
+            options={{ title: 'Register' }} 
           />
           <Stack.Screen 
             name="QRGenerate" 
-            component={QRGenerateScreen}
-            options={{ title: 'Generate QR Code' }}
+            component={QRGenerateScreen} 
+            options={{ title: 'Generate QR Code' }} 
           />
           <Stack.Screen 
             name="QRScanner" 
-            component={QRScannerScreen}
-            options={{ title: 'Scan QR Code' }}
+            component={QRScannerScreen} 
+            options={{ title: 'Scan QR Code' }} 
+          />
+          <Stack.Screen 
+            name="Chat" 
+            component={ChatScreen} 
+            options={({ route }) => ({
+              title: route.params.listingTitle 
+                ? `Chat: ${route.params.listingTitle.substring(0, 20)}${route.params.listingTitle.length > 20 ? '...' : ''}`
+                : 'Chat'
+            })} 
+          />
+          <Stack.Screen 
+            name="Inbox" 
+            component={InboxScreen} 
+            options={{ title: 'Your Messages' }} 
+          />
+          <Stack.Screen 
+            name="Profile" 
+            component={ProfileScreen} 
+            options={{ title: 'My Profile' }} 
           />
         </Stack.Navigator>
       </NavigationContainer>

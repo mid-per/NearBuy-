@@ -53,18 +53,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
     } catch (error) {
-      console.log('Auth error:', error);
-      await AsyncStorage.removeItem('access_token');
-      delete client.defaults.headers.common['Authorization'];
-      setUser(null);
+      console.error('Failed to load user', error);
+      await logout();
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadUser();
-  }, []);
 
   const logout = async () => {
     await AsyncStorage.removeItem('access_token');
@@ -72,12 +66,20 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     delete client.defaults.headers.common['Authorization'];
   };
 
+  useEffect(() => {
+    loadUser();
+  }, []);
+
   return (
     <UserContext.Provider value={{ 
       user, 
       setUser,
       loading,
-      logout
+      logout: async () => {
+        await AsyncStorage.removeItem('access_token');
+        delete client.defaults.headers.common['Authorization'];
+        setUser(null);
+      }
     }}>
       {children}
     </UserContext.Provider>

@@ -7,7 +7,7 @@ export type RootStackParamList = {
   Marketplace: undefined;
   Listings: undefined;
   CreateListing: undefined;
-  QRGenerate: { listingId: string };
+  QRGenerate: { listingId?: string };
   QRScanner: undefined;
   ListingDetails: { listingId: number };
   Inbox: undefined;
@@ -15,7 +15,10 @@ export type RootStackParamList = {
     roomId: number;
     listingId: number;
     sellerId: number;
+    buyerId: number; // Add this
+    listingTitle: string;
   };
+  Profile: undefined;
   // Add other screens here as you create them
 };
 

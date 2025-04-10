@@ -6,7 +6,8 @@ class User(db.Model):
     email = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)  # True = admin, False = customer
-
+    avatar = db.Column(db.String(255))  # Add this field
+    name = db.Column(db.String(80))   
     # As a SELLER (listings they created)
     listings = db.relationship(
         'Listing', 

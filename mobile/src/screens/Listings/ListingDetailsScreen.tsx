@@ -170,7 +170,9 @@ export default function ListingDetailsScreen() {
       navigation.navigate('Chat', {
         roomId: response.data.room_id,
         listingId: listing?.id,
-        sellerId: listing?.seller_id
+        sellerId: listing?.seller_id,
+        buyerId: user.id,
+        listingTitle: listing.title || `Item ${listing.id}`
       });
     } catch (error) {
       if (isAxiosError(error) && error.response?.status === 403) {

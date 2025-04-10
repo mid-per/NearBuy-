@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Button, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '@/types/navigation';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,32 +12,40 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 30,
+    paddingHorizontal: 15,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
   },
   buttonContainer: {
+    marginBottom: 25,
+  },
+  buttonRow: {
     flexDirection: 'row',
-    marginBottom: 20,
+    justifyContent: 'space-between',
+    marginBottom: 15,
   },
   button: {
-    flex: 1,
+    width: '48%',
     backgroundColor: '#007AFF',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
-    marginHorizontal: 5,
   },
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  iconButton: {
+    padding: 8,
   },
 });
 
@@ -49,44 +57,57 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>NearBuy</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Inbox')}>
-          <MaterialIcons name="inbox" size={28} color="#007AFF" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row' }}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Profile')}
+            style={styles.iconButton}
+          >
+            <MaterialIcons name="person" size={28} color="#007AFF" />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Inbox')}
+            style={styles.iconButton}
+          >
+            <MaterialIcons name="inbox" size={28} color="#007AFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={styles.button}
-          onPress={() => navigation.navigate('Marketplace')}
-        >
-          <Text style={styles.buttonText}>Browse Listings</Text>
-        </TouchableOpacity>
-
-        {user && (
+        <View style={styles.buttonRow}>
           <TouchableOpacity 
             style={styles.button}
-            onPress={() => navigation.navigate('CreateListing')}
+            onPress={() => navigation.navigate('Marketplace')}
           >
-            <Text style={styles.buttonText}>Sell Item</Text>
+            <Text style={styles.buttonText}>Browse Listings</Text>
           </TouchableOpacity>
-        )}
+
+          {user && (
+            <TouchableOpacity 
+              style={styles.button}
+              onPress={() => navigation.navigate('CreateListing')}
+            >
+              <Text style={styles.buttonText}>Sell Item</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.buttonRow}>
+          <TouchableOpacity 
+            style={styles.button}
+            onPress={() => navigation.navigate('QRGenerate', { listingId: 'default' })}
+          >
+            <Text style={styles.buttonText}>Generate QR</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.button}
+            onPress={() => navigation.navigate('QRScanner')}
+          >
+            <Text style={styles.buttonText}>Scan QR</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-
-      <View style={styles.buttonContainer}>
-      <TouchableOpacity 
-        style={styles.button}
-        onPress={() => navigation.navigate('QRGenerate', { listingId: '1' })}
-      >
-        <Text style={styles.buttonText}>Generate QR Code</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={styles.button}
-        onPress={() => navigation.navigate('QRScanner')}
-      >
-        <Text style={styles.buttonText}>Scan QR Code</Text>
-      </TouchableOpacity>
-    </View>
     </View>
   );
 }

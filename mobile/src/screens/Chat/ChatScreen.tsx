@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {  useCallback , useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -9,16 +9,17 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Image
 } from 'react-native';
-import { useRoute } from '@react-navigation/native';
-import { RootStackParamList } from '@/types/navigation';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import { ChatMessage } from '@/types/chat';
 import { MaterialIcons } from '@expo/vector-icons';
 import client from '@/api/client';
 import { useUser } from '@/contexts/UserContext';
 import socket from '@/utils/socket';
+import { RootStackParamList } from '@/types/navigation';
 
 type ChatScreenRouteProp = RouteProp<RootStackParamList, 'Chat'>;
 
@@ -84,49 +85,80 @@ const styles = StyleSheet.create({
   otherUserText: {
     color: '#000',
   },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+  },
 });
 
 export default function ChatScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<ChatScreenRouteProp>();
-  const { roomId, sellerId, listingId } = route.params;
+  const { roomId, sellerId, buyerId, listingId, listingTitle } = route.params;
   const { user } = useUser();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [partner, setPartner] = useState({
+    name: '',
+    avatar: '',
+  });
+
+  // Fixed: Added proper error handling for partner info
+  const fetchPartnerInfo = useCallback(async () => {
+    try {
+      const partnerId = user?.id === sellerId ? buyerId : sellerId;
+      const response = await client.get(`/users/${partnerId}`);
+      setPartner({
+        name: response.data.name || `User ${partnerId}`,
+        avatar: response.data.avatar || '',
+      });
+    } catch (error) {
+      console.log('Using default partner info');
+      setPartner({
+        name: `User ${user?.id === sellerId ? buyerId : sellerId}`,
+        avatar: '',
+      });
+    }
+  }, [user?.id, sellerId, buyerId]);
+
+  // Fixed: Combined data loading with proper error handling
+  const loadInitialData = useCallback(async () => {
+    try {
+      const [messagesResponse] = await Promise.all([
+        client.get(`/chats/${roomId}/messages`),
+        fetchPartnerInfo()
+      ]);
+      
+      setMessages(messagesResponse.data.messages.map((msg: any) => ({
+        ...msg,
+        // Fixed: Ensure unique key by combining timestamp and id
+        uniqueKey: `${msg.id}-${new Date(msg.sent_at).getTime()}`
+      })));
+    } catch (error) {
+      console.error('Failed to load chat data:', error);
+      setError('Failed to load chat messages');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [roomId, fetchPartnerInfo]);
 
   useEffect(() => {
-    const loadMessages = async () => {
-      try {
-        if (!user || !roomId) return;
-        
-        const response = await client.get(`/chats/${roomId}/messages`);
-        setMessages(response.data.messages.map((msg: any) => ({
-          id: msg.id.toString(),
-          text: msg.content,
-          senderId: msg.sender_id,
-          timestamp: new Date(msg.sent_at),
-          isCurrentUser: msg.sender_id === user.id,
-        })));
-      } catch (err) {
-        console.error('Failed to load messages:', err);
-        setError('Failed to load chat messages');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    if (!user || !roomId) return;
 
-    loadMessages();
+    loadInitialData();
 
+    // Socket setup
     socket.emit('join', { room_id: roomId });
     
     const handleNewMessage = (msg: any) => {
       setMessages(prev => [...prev, {
-        id: msg.id.toString(),
-        text: msg.content,
-        senderId: msg.sender_id,
-        timestamp: new Date(msg.timestamp),
-        isCurrentUser: msg.sender_id === user?.id,
+        ...msg,
+        // Fixed: Ensure unique key for new messages
+        uniqueKey: `${msg.id}-${new Date(msg.timestamp).getTime()}`
       }]);
     };
 
@@ -136,18 +168,29 @@ export default function ChatScreen() {
       socket.off('new_message', handleNewMessage);
       socket.emit('leave', { room_id: roomId });
     };
-  }, [roomId, user?.id]);
+  }, [roomId, user?.id, loadInitialData]);
 
+  // Update header title
+  useEffect(() => {
+    navigation.setOptions({
+      title: partner.name || listingTitle || 'Chat',
+    });
+  }, [partner.name, listingTitle]);
+
+   // Fixed: Optimistic updates with proper keys
   const handleSendMessage = async () => {
     if (!message.trim() || !user || !roomId) return;
 
+    const tempId = Date.now().toString();
+    const tempKey = `${tempId}-${Date.now()}`;
+    
     try {
       const newMessage = {
-        id: Date.now().toString(),
-        text: message,
-        senderId: user.id,
-        timestamp: new Date(),
-        isCurrentUser: true,
+        id: tempId,
+        content: message,
+        sender_id: user.id,
+        sent_at: new Date().toISOString(),
+        uniqueKey: tempKey
       };
 
       setMessages(prev => [...prev, newMessage]);
@@ -159,15 +202,29 @@ export default function ChatScreen() {
         content: message
       });
 
-      await client.post(`/chats/${roomId}/messages`, {
+      const response = await client.post(`/chats/${roomId}/messages`, {
         content: message,
       });
+
+      setMessages(prev => prev.map(msg => 
+        msg.uniqueKey === tempKey ? { 
+          ...msg, 
+          id: response.data.id,
+          uniqueKey: `${response.data.id}-${new Date(msg.sent_at).getTime()}`
+        } : msg
+      ));
     } catch (err) {
       console.error('Failed to send message:', err);
-      Alert.alert('Error', 'Failed to send message');
-      setMessages(prev => prev.slice(0, -1));
+      setMessages(prev => prev.filter(msg => msg.uniqueKey !== tempKey));
     }
   };
+
+   // Update header title
+  useEffect(() => {
+    navigation.setOptions({
+      title: partner.name || listingTitle || 'Chat',
+    });
+  }, [partner.name, listingTitle]);
 
   if (isLoading) {
     return (
@@ -193,19 +250,35 @@ export default function ChatScreen() {
     >
       <FlatList
         data={messages}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={messages.length === 0 ? styles.emptyChatContainer : styles.messageList}
+        keyExtractor={(item) => item.uniqueKey}  // Fixed: Using uniqueKey
         renderItem={({ item }) => (
-          <View style={[
-            styles.messageBubble,
-            item.isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage
-          ]}>
-            <Text style={[
-              styles.messageText,
-              item.isCurrentUser ? styles.currentUserText : styles.otherUserText
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'flex-end',
+            marginVertical: 4,
+            alignSelf: item.sender_id === user?.id ? 'flex-end' : 'flex-start',
+          }}>
+            {item.sender_id !== user?.id && partner.avatar && (
+              <Image 
+                source={{ uri: partner.avatar }} 
+                style={styles.avatar} 
+              />
+            )}
+            <View style={[
+              styles.messageBubble,
+              item.sender_id === user?.id 
+                ? styles.currentUserMessage 
+                : styles.otherUserMessage
             ]}>
-              {item.text}
-            </Text>
+              <Text style={[
+                styles.messageText,
+                item.sender_id === user?.id 
+                  ? styles.currentUserText 
+                  : styles.otherUserText
+              ]}>
+                {item.content}
+              </Text>
+            </View>
           </View>
         )}
         ListEmptyComponent={
