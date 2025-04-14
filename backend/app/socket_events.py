@@ -3,7 +3,7 @@ from app import db
 from app.models.chat_model import ChatMessage
 from datetime import datetime, timezone
 
-socketio = SocketIO(async_mode='eventlet', cors_allowed_origins="*")
+socketio = SocketIO(async_mode='threading', cors_allowed_origins="*")
 
 def init_socketio(app):
     socketio.init_app(app)

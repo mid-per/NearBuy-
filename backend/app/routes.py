@@ -1,5 +1,6 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, app
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, create_refresh_token
+from app.extensions import limiter
 from werkzeug.security import generate_password_hash, check_password_hash
 from uuid import uuid4 
 from app import db
@@ -61,6 +62,7 @@ def healthcheck():
 ###################################################################
 # Register (Customers or Admins)
 @bp.route('/register', methods=['POST'])
+@limiter.limit("10 per minute")
 def register():
     try:
         data = request.get_json()
@@ -90,6 +92,7 @@ def register():
 
 # Login
 @bp.route('/login', methods=['POST'])
+@limiter.limit("100 per minute")
 def login():
     data = request.get_json()
     if not data or 'email' not in data or 'password' not in data:
@@ -139,6 +142,55 @@ def verify_token():
         "email": current_user.email
     }), 200
 
+@bp.route('/auth/logout', methods=['POST'])
+@jwt_required()
+def logout():
+    # In a real app, you might blacklist the token here
+    return jsonify({"message": "Logged out successfully"}), 200
+
+# Add these new routes
+@bp.route('/auth/change-email', methods=['POST'])
+@jwt_required()
+def change_email():
+    current_user = User.query.get(int(get_jwt_identity()))
+    data = request.get_json()
+    
+    # Add validation
+    if not check_password_hash(current_user.password, data['currentPassword']):
+        return jsonify({"error": "Invalid password"}), 401
+        
+    if User.query.filter_by(email=data['newEmail']).first():
+        return jsonify({"error": "Email already in use"}), 409
+        
+    current_user.email = data['newEmail']
+    db.session.commit()
+    
+    return jsonify({
+        "message": "Email updated",
+        "email": current_user.email
+    }), 200
+
+@bp.route('/auth/change-password', methods=['POST'])
+@jwt_required()
+def change_password():
+    current_user_id = get_jwt_identity()
+    user = User.query.get_or_404(current_user_id)
+    
+    data = request.get_json()
+    if not data or 'currentPassword' not in data or 'newPassword' not in data:
+        return jsonify({"error": "Current and new password required"}), 400
+        
+    if not check_password_hash(user.password, data['currentPassword']):
+        return jsonify({"error": "Invalid current password"}), 401
+        
+    if len(data['newPassword']) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+        
+    user.password = generate_password_hash(data['newPassword'])
+    db.session.commit()
+    
+    return jsonify({"message": "Password updated successfully"}), 200
+
 @bp.route('/users/<int:user_id>', methods=['GET'])
 @jwt_required()
 def get_user(user_id):
@@ -183,6 +235,9 @@ def user_profile(user_id):
             "email": user.email,
             "name": user.name,
             "avatar": user.avatar,
+            "bio": user.bio,
+            "location": user.location,
+            "phone": user.phone,
             "is_admin": user.is_admin
         })
 
@@ -193,6 +248,7 @@ def user_profile(user_id):
             print(f"Form data: {request.form}")
             print(f"Files received: {request.files}")
             
+            data = {}
             # Handle both JSON and FormData
             if request.content_type and 'multipart/form-data' in request.content_type:
                 data = request.form.to_dict()
@@ -215,6 +271,15 @@ def user_profile(user_id):
             if 'name' in data:
                 user.name = data['name']
 
+            if 'bio' in data:
+                user.bio = data['bio']
+
+            if 'location' in data:
+                user.location = data['location']
+
+            if 'phone' in data:
+                user.phone = data['phone']
+
             if 'password' in data and data['password']:
                 user.password = generate_password_hash(data['password'])
 
@@ -224,6 +289,9 @@ def user_profile(user_id):
                 "email": user.email,
                 "name": user.name,
                 "avatar": user.avatar,
+                "bio": user.bio,
+                "location": user.location,
+                "phone": user.phone,
                 "is_admin": user.is_admin
             })
 

@@ -1,10 +1,10 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy.orm import joinedload
 from app import db
 from app.models.user_model import User
 from app.models.listing_model import Transaction
 from app.models.chat_model import ChatRoom, ChatMessage
-from datetime import datetime, timezone
 import uuid
 from app.models.listing_model import Listing, Transaction
 from functools import wraps
@@ -167,8 +167,10 @@ def get_messages(room_id):
     if current_user.id not in [room.transaction.buyer_id, room.transaction.seller_id]:
         return jsonify({"error": "Not authorized"}), 403
     
-    messages = ChatMessage.query.filter_by(room_id=room_id)\
-        .order_by(ChatMessage.sent_at.asc()).all()
+    messages = ChatMessage.query.options(
+        joinedload(ChatMessage.sender)
+    ).filter_by(room_id=room_id
+    ).order_by(ChatMessage.sent_at.asc()).all()
     
     return jsonify({
         "listing": {

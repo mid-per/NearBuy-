@@ -16,10 +16,9 @@ import { MaterialIcons } from '@expo/vector-icons';
 import client from '@/api/client';
 import { useUser } from '@/contexts/UserContext';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
 import { BACKEND_BASE_URL } from '@/config';
 import { RootStackParamList } from '@/types/navigation';
-import { UserProfileResponse } from '@/types/user';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ProfileScreenProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -102,6 +101,36 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  secondaryButton: {
+    backgroundColor: '#f0f0f0',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginVertical: 5,
+  },
+  secondaryButtonText: {
+    color: '#007AFF',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  bioText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 10,
+  },
+  detailsContainer: {
+    marginVertical: 10,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 5,
   },
 });
 
@@ -219,7 +248,11 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     try {
-      await client.post('/auth/logout');
+      // Clear token from storage
+      await AsyncStorage.removeItem('access_token');
+      // Clear axios auth header
+      delete client.defaults.headers.common['Authorization'];
+      // Navigate to login
       navigation.navigate('Login');
     } catch (error) {
       console.error('Logout failed:', error);
@@ -257,6 +290,24 @@ export default function ProfileScreen() {
         <View style={styles.userInfo}>
           <Text style={styles.name}>{profile.name}</Text>
           <Text style={styles.email}>{user?.email}</Text>
+          {user?.bio && <Text style={styles.bioText}>{user.bio}</Text>}
+  
+          <View style={styles.detailsContainer}>
+            {user?.location && (
+              <View style={styles.detailRow}>
+                <MaterialIcons name="location-on" size={16} color="#666" />
+                <Text style={styles.detailText}>{user.location}</Text>
+              </View>
+            )}
+            
+            {user?.phone && (
+              <View style={styles.detailRow}>
+                <MaterialIcons name="phone" size={16} color="#666" />
+                <Text style={styles.detailText}>{user.phone}</Text>
+              </View>
+            )}
+          </View>
+
           <View style={styles.ratingContainer}>
             <MaterialIcons name="star" size={20} color="#FFD700" />
             <Text style={styles.ratingText}>
@@ -278,12 +329,28 @@ export default function ProfileScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account</Text>
+        
         <TouchableOpacity 
           style={styles.button}
-          onPress={() => navigation.navigate('EditProfile')}
+          onPress={() => navigation.navigate('EditBasicProfile')}
         >
           <Text style={styles.buttonText}>Edit Profile</Text>
         </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.secondaryButton}
+          onPress={() => navigation.navigate('ChangeEmail')}
+        >
+          <Text style={styles.secondaryButtonText}>Change Email</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.secondaryButton}
+          onPress={() => navigation.navigate('ChangePassword')}
+        >
+          <Text style={styles.secondaryButtonText}>Change Password</Text>
+        </TouchableOpacity>
+        
         <TouchableOpacity 
           style={styles.logoutButton}
           onPress={handleLogout}

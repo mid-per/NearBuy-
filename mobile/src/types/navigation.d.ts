@@ -28,7 +28,9 @@ export type RootStackParamList = {
     };
   };
   Profile: undefined;
-  EditProfile: undefined;
+  EditBasicProfile: undefined;
+  ChangeEmail: undefined;
+  ChangePassword: undefined;
   // Add other screens here as you create them
 };
 

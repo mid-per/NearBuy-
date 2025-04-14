@@ -1,4 +1,6 @@
 from app import db
+from sqlalchemy import event
+from werkzeug.security import generate_password_hash
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -6,8 +8,12 @@ class User(db.Model):
     email = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)  # True = admin, False = customer
-    avatar = db.Column(db.String(255))  # Add this field
-    name = db.Column(db.String(80))   
+    avatar = db.Column(db.String(255))  
+    name = db.Column(db.String(80))  
+    bio = db.Column(db.String(500))  
+    location = db.Column(db.String(100))  
+    phone = db.Column(db.String(20), 
+                     info={'check_constraint': 'length(phone) >= 8'})
     # As a SELLER (listings they created)
     listings = db.relationship(
         'Listing', 
@@ -33,3 +39,9 @@ class User(db.Model):
     )
 
     sent_messages = db.relationship('ChatMessage', back_populates='sender', lazy=True)
+
+@event.listens_for(User.password, 'set', retval=True)
+def hash_password(target, value, oldvalue, initiator):
+    if value != oldvalue:
+        return generate_password_hash(value)
+    return value

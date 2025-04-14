@@ -19,7 +19,9 @@ import { UserProvider } from '@/contexts/UserContext';
 import ProfileScreen from '@/screens/Profile/ProfileScreen';
 import YourListingsScreen from '@/screens/Listings/YourListingsScreen';
 import RatingScreen from '@/screens/Transactions/RatingScreen';
-import EditProfileScreen from '@/screens/Profile/EditProfileScreen';
+import EditBasicProfileScreen from '@/screens/Profile/EditBasicProfileScreen';
+import ChangeEmailScreen from '@/screens/Profile/ChangeEmailScreen';
+import ChangePasswordScreen from '@/screens/Profile/ChangePasswordScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -143,9 +145,19 @@ export default function App() {
             options={{ title: 'My Profile' }} 
           />
           <Stack.Screen 
-            name="EditProfile" 
-            component={EditProfileScreen} 
-            options={{ title: 'Edit Profile' }}
+            name="EditBasicProfile" 
+            component={EditBasicProfileScreen} 
+            options={{ title: 'Edit Profile' }} 
+          />
+          <Stack.Screen 
+            name="ChangeEmail" 
+            component={ChangeEmailScreen} 
+            options={{ title: 'Change Email' }} 
+          />
+          <Stack.Screen 
+            name="ChangePassword" 
+            component={ChangePasswordScreen} 
+            options={{ title: 'Change Password' }} 
           />
         </Stack.Navigator>
       </NavigationContainer>

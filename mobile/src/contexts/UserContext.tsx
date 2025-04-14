@@ -9,6 +9,9 @@ interface User {
   name: string | null;
   avatar: string | null;
   is_admin: boolean;
+  bio?: string;
+  location?: string;
+  phone?: string;
 }
 
 type UserContextType = {

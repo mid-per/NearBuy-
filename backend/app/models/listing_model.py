@@ -97,6 +97,12 @@ class Transaction(db.Model):
         foreign_keys=[seller_id],
         back_populates='sales'
     )
-
     listing = db.relationship('Listing', back_populates='transactions')
     chat_room = db.relationship('ChatRoom', back_populates='transaction', uselist=False)
+
+from app.models.transaction_status_history import TransactionStatusHistory
+Transaction.status_history = db.relationship(
+    'TransactionStatusHistory', 
+    backref='transaction',
+    lazy=True
+)
