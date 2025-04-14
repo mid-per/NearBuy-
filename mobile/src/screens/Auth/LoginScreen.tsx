@@ -90,7 +90,9 @@ export default function LoginScreen() {
         setUser({
           id: response.data.user_id,
           email: response.data.email,
-          isAdmin: response.data.is_admin || false
+          name: null, // or get from response if available
+          avatar: null, // or get from response if available
+          is_admin: false 
         });
   
         navigation.navigate('Home');

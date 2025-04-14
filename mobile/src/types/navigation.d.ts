@@ -28,6 +28,7 @@ export type RootStackParamList = {
     };
   };
   Profile: undefined;
+  EditProfile: undefined;
   // Add other screens here as you create them
 };
 

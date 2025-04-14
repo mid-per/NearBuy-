@@ -1,4 +1,3 @@
-// ProfileScreen.tsx
 import React, { useState, useEffect } from 'react';
 import { 
   View, 
@@ -11,14 +10,16 @@ import {
   Alert,
   RefreshControl
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { RootStackParamList } from '@/types/navigation';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
 import client from '@/api/client';
 import { useUser } from '@/contexts/UserContext';
 import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
+import { BACKEND_BASE_URL } from '@/config';
+import { RootStackParamList } from '@/types/navigation';
+import { UserProfileResponse } from '@/types/user';
 
 type ProfileScreenProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -106,7 +107,7 @@ const styles = StyleSheet.create({
 
 export default function ProfileScreen() {
   const navigation = useNavigation<ProfileScreenProp>();
-  const { user, logout } = useUser();
+  const { user, setUser } = useUser();
   const [profile, setProfile] = useState({
     name: '',
     avatar: '',
@@ -114,96 +115,111 @@ export default function ProfileScreen() {
     listingsCount: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadProfile = async () => {
+    try {
+      const response = await client.get(`/users/${user?.id}`);
+      
+      setProfile({
+        name: response.data.name || user?.email.split('@')[0] || 'User',
+        avatar: response.data.avatar ? 
+          `${BACKEND_BASE_URL}${response.data.avatar}` : '',
+        rating: response.data.rating || 0,
+        listingsCount: response.data.listings_count || 0,
+      });
+      
+    } catch (error) {
+      console.error('Failed to load profile:', error);
+      setProfile({
+        name: user?.email.split('@')[0] || 'User',
+        avatar: '',
+        rating: 0,
+        listingsCount: 0,
+      });
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        setIsLoading(true);
-        const response = await client.get(`/users/${user?.id}`);
-        
-        setProfile({
-          name: response.data.name || user?.email.split('@')[0] || 'User',
-          avatar: response.data.avatar || '',
-          rating: response.data.rating || 0,
-          listingsCount: response.data.listings_count || 0,
-        });
-        
-      } catch (error) {
-        console.error('Failed to load profile:', error);
-        // Fallback to basic data if API fails
-        setProfile({
-          name: user?.email.split('@')[0] || 'User',
-          avatar: '',
-          rating: 0,
-          listingsCount: 0,
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     if (user?.id) {
       loadProfile();
     }
   }, [user?.id]);
 
   const handleRefresh = async () => {
-    setIsLoading(true);
+    setRefreshing(true);
+    await loadProfile();
+  };
+
+  const pickImage = async () => {
     try {
-      const response = await client.get(`/users/${user?.id}`);
-      setProfile({
-        name: response.data.name || user?.email.split('@')[0] || 'User',
-        avatar: response.data.avatar || '',
-        rating: response.data.rating || 0,
-        listingsCount: response.data.listings_count || 0,
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Please allow access to your photos');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
       });
-    } catch (error) {
-      console.error('Refresh failed:', error);
+
+      if (!result.canceled && result.assets[0].uri) {
+        setIsLoading(true);
+        
+        // Create FormData
+        const formData = new FormData();
+        formData.append('image', {
+          uri: result.assets[0].uri,
+          name: `avatar_${user?.id}_${Date.now()}.jpg`,
+          type: 'image/jpeg'
+        } as any);
+
+        // Upload image
+        const uploadResponse = await client.post('/upload', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        // Update profile with new avatar
+        const updateResponse = await client.put(`/users/${user?.id}`, {
+          avatar: uploadResponse.data.url.replace(BACKEND_BASE_URL, ''),
+        });
+
+        // Update local state
+        setProfile(prev => ({ 
+          ...prev, 
+          avatar: uploadResponse.data.url 
+        }));
+        
+        // Update user context
+        if (user) {
+          setUser({ 
+            ...user, 
+            avatar: uploadResponse.data.url.replace(BACKEND_BASE_URL, '')
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error('Avatar update error:', error);
+      Alert.alert(
+        'Error', 
+        error.response?.data?.error || 'Failed to update profile picture'
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission required', 'We need camera roll permissions to upload photos');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets?.length > 0) {
-      try {
-        setIsLoading(true);
-        // Upload the image similar to CreateListingScreen
-        const uploadResponse = await client.post('/upload', {
-          image: result.assets[0].uri,
-        });
-        
-        // Update profile with new avatar
-        await client.patch(`/users/${user?.id}/profile`, {
-          avatar: uploadResponse.data.url,
-        });
-        
-        setProfile(prev => ({ ...prev, avatar: uploadResponse.data.url }));
-      } catch (error) {
-        Alert.alert('Error', 'Failed to update profile picture');
-      } finally {
-        setIsLoading(false);
-      }
-    }
-  };
-
   const handleLogout = async () => {
     try {
-      await logout(); // Use the logout function from UserContext
+      await client.post('/auth/logout');
       navigation.navigate('Login');
     } catch (error) {
       console.error('Logout failed:', error);
@@ -224,7 +240,7 @@ export default function ProfileScreen() {
       style={styles.container}
       refreshControl={
         <RefreshControl
-          refreshing={isLoading}
+          refreshing={refreshing}
           onRefresh={handleRefresh}
         />
       }
@@ -264,7 +280,7 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Account</Text>
         <TouchableOpacity 
           style={styles.button}
-          onPress={() => setIsEditing(true)}
+          onPress={() => navigation.navigate('EditProfile')}
         >
           <Text style={styles.buttonText}>Edit Profile</Text>
         </TouchableOpacity>

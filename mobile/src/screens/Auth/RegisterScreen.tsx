@@ -118,7 +118,9 @@ export default function RegisterScreen() {
         setUser({
           id: loginResponse.data.user_id,
           email: email,
-          isAdmin: false
+          name: null, // or get from response if available
+          avatar: null, // or get from response if available
+          is_admin: false 
         });
         
         // Navigate after all state is updated

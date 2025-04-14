@@ -16,9 +16,10 @@ import { RootStackParamList } from '@/types/navigation';
 import ListingDetailsScreen from '@/screens/Listings/ListingDetailsScreen';
 import ChatScreen from '@/screens/Chat/ChatScreen';
 import { UserProvider } from '@/contexts/UserContext';
-import ProfileScreen from '@/screens/Auth/ProfileScreen';
+import ProfileScreen from '@/screens/Profile/ProfileScreen';
 import YourListingsScreen from '@/screens/Listings/YourListingsScreen';
 import RatingScreen from '@/screens/Transactions/RatingScreen';
+import EditProfileScreen from '@/screens/Profile/EditProfileScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -140,6 +141,11 @@ export default function App() {
             name="Profile" 
             component={ProfileScreen} 
             options={{ title: 'My Profile' }} 
+          />
+          <Stack.Screen 
+            name="EditProfile" 
+            component={EditProfileScreen} 
+            options={{ title: 'Edit Profile' }}
           />
         </Stack.Navigator>
       </NavigationContainer>

@@ -3,11 +3,13 @@ import client from '@/api/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { jwtDecode } from 'jwt-decode';
 
-type User = {
+interface User {
   id: number;
   email: string;
-  isAdmin: boolean;
-};
+  name: string | null;
+  avatar: string | null;
+  is_admin: boolean;
+}
 
 type UserContextType = {
   user: User | null;
@@ -27,29 +29,25 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-// Update the loadUser function in UserContext.tsx
   const loadUser = async () => {
     try {
       const token = await AsyncStorage.getItem('access_token');
       console.log('Token loaded from storage:', token?.slice(0, 20) + '...');
     
       if (token) {
-      // Verify token matches current user
-        const decoded = jwtDecode(token); // You'll need 'jwt-decode' package
+        const decoded = jwtDecode(token) as { sub?: string };
         console.log('Decoded token:', decoded);
       
-        if (decoded.sub !== user?.id?.toString()) {
-          console.log('Token user mismatch, clearing');
-          throw new Error('Token user mismatch');
-        }
-
-        const response = await client.get('/auth/me');
+        const response = await client.get<User>('/auth/me');
         console.log('User data verified:', response.data);
       
+        // Ensure we handle null values from backend
         setUser({
           id: response.data.id,
           email: response.data.email,
-          isAdmin: response.data.is_admin || false
+          name: response.data.name || null,
+          avatar: response.data.avatar || null,
+          is_admin: response.data.is_admin || false
         });
       }
     } catch (error) {
@@ -75,11 +73,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user, 
       setUser,
       loading,
-      logout: async () => {
-        await AsyncStorage.removeItem('access_token');
-        delete client.defaults.headers.common['Authorization'];
-        setUser(null);
-      }
+      logout
     }}>
       {children}
     </UserContext.Provider>

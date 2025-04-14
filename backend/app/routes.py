@@ -14,6 +14,7 @@ from werkzeug.utils import secure_filename
 import base64
 import os
 import uuid
+import time 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -112,17 +113,16 @@ def login():
 @jwt_required()
 def get_current_user():
     current_user_id = int(get_jwt_identity())
-    print(f"Token contains user ID: {current_user_id}")  # Debug log
     
     current_user = User.query.get(current_user_id)
     if not current_user:
         return jsonify({"error": "User not found"}), 404
-        
-    print(f"Returning data for: {current_user.email}")  # Debug log
     
     return jsonify({
         "id": current_user.id,
         "email": current_user.email,
+        "name": current_user.name, 
+        "avatar": current_user.avatar,  
         "is_admin": current_user.is_admin
     }), 200
 
@@ -165,7 +165,78 @@ def get_user(user_id):
         "is_admin": user.is_admin
     }), 200
 
-#listing 
+# User Profile Endpoints
+@bp.route('/users/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
+@jwt_required()
+def user_profile(user_id):
+    current_user_id = int(get_jwt_identity())
+    
+    # Authorization check
+    if current_user_id != user_id and not User.query.get(current_user_id).is_admin:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    user = User.query.get_or_404(user_id)
+
+    if request.method == 'GET':
+        return jsonify({
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "avatar": user.avatar,
+            "is_admin": user.is_admin
+        })
+
+    elif request.method == 'PUT':
+        try:
+            # Debugging output
+            print(f"\nContent-Type: {request.content_type}")
+            print(f"Form data: {request.form}")
+            print(f"Files received: {request.files}")
+            
+            # Handle both JSON and FormData
+            if request.content_type and 'multipart/form-data' in request.content_type:
+                data = request.form.to_dict()
+                avatar_file = request.files.get('avatar')
+                
+                if avatar_file:
+                    filename = secure_filename(f"{user_id}_avatar_{int(time.time())}.{avatar_file.filename.split('.')[-1]}")
+                    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+                    avatar_file.save(filepath)
+                    user.avatar = f"/uploads/{filename}"
+            else:
+                data = request.get_json()
+
+            # Update fields
+            if 'email' in data:
+                if User.query.filter(User.email == data['email'], User.id != user.id).first():
+                    return jsonify({"error": "Email already in use"}), 400
+                user.email = data['email']
+
+            if 'name' in data:
+                user.name = data['name']
+
+            if 'password' in data and data['password']:
+                user.password = generate_password_hash(data['password'])
+
+            db.session.commit()
+            return jsonify({
+                "id": user.id,
+                "email": user.email,
+                "name": user.name,
+                "avatar": user.avatar,
+                "is_admin": user.is_admin
+            })
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Profile update failed: {str(e)}")
+            return jsonify({"error": "Profile update failed", "details": str(e)}), 500
+
+    elif request.method == 'DELETE':
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({"message": "User deleted"})
+
 # Create Listing (Seller)
 @bp.route('/listings', methods=['POST'])
 @jwt_required()

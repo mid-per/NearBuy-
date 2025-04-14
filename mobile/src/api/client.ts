@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Replace with your Flask server's local IP (run `ipconfig` on Windows)
-const BASE_URL = 'http://192.168.1.159:5000/api';
+const BASE_URL = 'http://192.168.1.159:5000/api'; //home 192.168.1.159 uni 10.66.12.30
 
 const client = axios.create({
   baseURL: BASE_URL,
