@@ -101,7 +101,7 @@ export default function RatingScreen() {
         rating,
         feedback: selectedTags.join(', '),
       });
-      navigation.navigate('Home');
+      navigation.navigate('Main');
     } catch (error) {
       console.error('Rating failed:', error);
       Alert.alert('Error', 'Failed to submit rating');

@@ -9,9 +9,10 @@ interface User {
   name: string | null;
   avatar: string | null;
   is_admin: boolean;
-  bio?: string;
-  location?: string;
-  phone?: string;
+  bio: string | null;       
+  location: string | null;  
+  phone: string | null;
+  rating?: number;
 }
 
 type UserContextType = {
@@ -19,6 +20,8 @@ type UserContextType = {
   setUser: (user: User | null) => void;
   loading: boolean;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>; 
+  updateUserField: (field: keyof User, value: any) => void; 
 };
 
 const UserContext = createContext<UserContextType>({
@@ -26,6 +29,8 @@ const UserContext = createContext<UserContextType>({
   setUser: () => {},
   loading: true,
   logout: async () => {},
+  refreshUser: async () => {}, 
+  updateUserField: () => {} 
 });
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -35,22 +40,21 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadUser = async () => {
     try {
       const token = await AsyncStorage.getItem('access_token');
-      console.log('Token loaded from storage:', token?.slice(0, 20) + '...');
     
       if (token) {
-        const decoded = jwtDecode(token) as { sub?: string };
-        console.log('Decoded token:', decoded);
+        const response = await client.get<User>(`/auth/me?${Date.now()}`); // Cache busting
+        const userResponse = await client.get(`/users/${response.data.id}`);
       
-        const response = await client.get<User>('/auth/me');
-        console.log('User data verified:', response.data);
-      
-        // Ensure we handle null values from backend
         setUser({
-          id: response.data.id,
-          email: response.data.email,
-          name: response.data.name || null,
-          avatar: response.data.avatar || null,
-          is_admin: response.data.is_admin || false
+          id: userResponse.data.id,
+          email: userResponse.data.email,
+          name: userResponse.data.name || null,
+          avatar: userResponse.data.avatar ? `${userResponse.data.avatar}?${Date.now()}` : null,
+          is_admin: userResponse.data.is_admin || false,
+          bio: userResponse.data.bio || null,
+          location: userResponse.data.location || null,
+          phone: userResponse.data.phone || null,
+          rating: userResponse.data.rating || 0
         });
       }
     } catch (error) {
@@ -59,6 +63,19 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setLoading(false);
     }
+  };
+
+  const refreshUser = async () => {
+    setLoading(true);
+    await loadUser();
+    setLoading(false);
+  };
+
+  const updateUserField = (field: keyof User, value: any) => {
+    setUser(prev => {
+      if (!prev) return null;
+      return { ...prev, [field]: value };
+    });
   };
 
   const logout = async () => {
@@ -76,7 +93,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user, 
       setUser,
       loading,
-      logout
+      logout,
+      refreshUser, 
+      updateUserField 
     }}>
       {children}
     </UserContext.Provider>

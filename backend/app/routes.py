@@ -125,7 +125,10 @@ def get_current_user():
         "id": current_user.id,
         "email": current_user.email,
         "name": current_user.name, 
-        "avatar": current_user.avatar,  
+        "avatar": current_user.avatar, 
+        "bio": current_user.bio,
+        "location": current_user.location,
+        "phone": current_user.phone,
         "is_admin": current_user.is_admin
     }), 200
 
@@ -212,6 +215,9 @@ def get_user(user_id):
         "email": user.email,
         "name": user.name,
         "avatar": user.avatar,
+        "bio": user.bio,
+        "location": user.location,
+        "phone": user.phone,
         "rating": avg_rating,
         "listings_count": listings_count,
         "is_admin": user.is_admin
@@ -238,19 +244,17 @@ def user_profile(user_id):
             "bio": user.bio,
             "location": user.location,
             "phone": user.phone,
-            "is_admin": user.is_admin
+            "is_admin": user.is_admin,
+            "rating": user.rating,  
+            "listings_count": Listing.query.filter_by(seller_id=user_id, status='active').count()
         })
 
     elif request.method == 'PUT':
         try:
-            # Debugging output
-            print(f"\nContent-Type: {request.content_type}")
-            print(f"Form data: {request.form}")
-            print(f"Files received: {request.files}")
-            
             data = {}
             # Handle both JSON and FormData
             if request.content_type and 'multipart/form-data' in request.content_type:
+                # Handle FormData (for avatar uploads)
                 data = request.form.to_dict()
                 avatar_file = request.files.get('avatar')
                 
@@ -260,6 +264,7 @@ def user_profile(user_id):
                     avatar_file.save(filepath)
                     user.avatar = f"/uploads/{filename}"
             else:
+                # Handle JSON data
                 data = request.get_json()
 
             # Update fields
@@ -268,22 +273,18 @@ def user_profile(user_id):
                     return jsonify({"error": "Email already in use"}), 400
                 user.email = data['email']
 
+            # Update fields
             if 'name' in data:
                 user.name = data['name']
-
             if 'bio' in data:
                 user.bio = data['bio']
-
             if 'location' in data:
                 user.location = data['location']
-
             if 'phone' in data:
                 user.phone = data['phone']
 
-            if 'password' in data and data['password']:
-                user.password = generate_password_hash(data['password'])
-
             db.session.commit()
+
             return jsonify({
                 "id": user.id,
                 "email": user.email,

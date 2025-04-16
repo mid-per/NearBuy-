@@ -95,7 +95,7 @@ export default function LoginScreen() {
           is_admin: false 
         });
   
-        navigation.navigate('Home');
+        navigation.navigate('Main');
       }
     } catch (error) {
       console.error('Full login error:', error);

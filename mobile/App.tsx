@@ -1,29 +1,109 @@
 // App.tsx
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import LoginScreen from '@/screens/Auth/LoginScreen';
-import HomeScreen from '@/screens/Listings/HomeScreen';
-import MarketplaceScreen from '@/screens/Listings/MarketplaceScreen';
-import CreateListingScreen from '@/screens/Listings/CreateListingScreen';
-import QRGenerateScreen from '@/screens/Transactions/QRGenerateScreen';
-import QRScannerScreen from '@/screens/Transactions/QRScannerScreen';
-import RegisterScreen from '@/screens/Auth/RegisterScreen';
-import InboxScreen from '@/screens/Inbox/InboxScreen';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { RootStackParamList } from '@/types/navigation';
+
+// Screens
+import LoginScreen from '@/screens/Auth/LoginScreen';
+import RegisterScreen from '@/screens/Auth/RegisterScreen';
+import MarketplaceScreen from '@/screens/Listings/MarketplaceScreen';
+import CreateListingScreen from '@/screens/Listings/CreateListingScreen';
 import ListingDetailsScreen from '@/screens/Listings/ListingDetailsScreen';
+import YourListingsScreen from '@/screens/Listings/YourListingsScreen'
+import QRGenerateScreen from '@/screens/Transactions/QRGenerateScreen';
+import QRScannerScreen from '@/screens/Transactions/QRScannerScreen';
+import InboxScreen from '@/screens/Inbox/InboxScreen';
 import ChatScreen from '@/screens/Chat/ChatScreen';
-import { UserProvider } from '@/contexts/UserContext';
 import ProfileScreen from '@/screens/Profile/ProfileScreen';
-import YourListingsScreen from '@/screens/Listings/YourListingsScreen';
 import RatingScreen from '@/screens/Transactions/RatingScreen';
 import EditBasicProfileScreen from '@/screens/Profile/EditBasicProfileScreen';
 import ChangeEmailScreen from '@/screens/Profile/ChangeEmailScreen';
 import ChangePasswordScreen from '@/screens/Profile/ChangePasswordScreen';
 
+// Context and Types
+import { UserProvider } from '@/contexts/UserContext';
+import { RootStackParamList, MainTabParamList } from '@/types/navigation';
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator<MainTabParamList>();
+
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        tabBarActiveTintColor: '#007AFF',
+        tabBarInactiveTintColor: 'gray',
+        tabBarStyle: {
+          paddingBottom: 5,
+          height: 60,
+        },
+      }}
+    >
+      <Tab.Screen 
+        name="Marketplace" 
+        component={MarketplaceScreen}
+        options={{
+          tabBarLabel: 'Browse',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="search" size={size} color={color} />
+          ),
+          headerTitle: 'Marketplace',
+          headerShown: true,
+        }}
+      />
+      <Tab.Screen 
+        name="CreateListing" 
+        component={CreateListingScreen}
+        options={{
+          tabBarLabel: 'Sell',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="add-circle" size={size} color={color} />
+          ),
+          headerTitle: 'Create Listing',
+          headerShown: true,
+        }}
+      />
+      <Tab.Screen 
+        name="QRScanner" 
+        component={QRScannerScreen}
+        options={{
+          tabBarLabel: 'Scan',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="qr-code-scanner" size={size} color={color} />
+          ),
+          headerTitle: 'Scan QR Code',
+          headerShown: true,
+        }}
+      />
+      <Tab.Screen 
+        name="Inbox" 
+        component={InboxScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="inbox" size={size} color={color} />
+          ),
+          headerTitle: 'Messages',
+          headerShown: true,
+        }}
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="person" size={size} color={color} />
+          ),
+          headerTitle: 'My Profile',
+          headerShown: true,
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
 
 export default function App() {
   const [appIsReady, setAppIsReady] = useState(false);
@@ -59,43 +139,10 @@ export default function App() {
           initialRouteName="Login"
           screenOptions={{
             headerBackTitle: '',
-            animation: 'fade', // Smoother transitions
-            animationDuration: 150, // Faster animation
+            animation: 'fade',
+            animationDuration: 150,
           }}
         >
-          <Stack.Screen 
-            name="Home" 
-            component={HomeScreen} 
-            options={{ 
-              title: 'NearBuy',
-              headerBackVisible: false 
-            }} 
-          />
-          <Stack.Screen 
-            name="Marketplace" 
-            component={MarketplaceScreen} 
-            options={{ title: 'Browse Listings' }} 
-          />
-          <Stack.Screen 
-            name="YourListings" 
-            component={YourListingsScreen} 
-            options={{ 
-              title: 'Your Listings',
-            }} 
-          />
-          <Stack.Screen 
-            name="ListingDetails" 
-            component={ListingDetailsScreen} 
-            options={{ 
-              title: 'Listing Details',
-              headerBackVisible: false 
-             }} 
-          />
-          <Stack.Screen 
-            name="CreateListing" 
-            component={CreateListingScreen} 
-            options={{ title: 'Create Listing' }} 
-          />
           <Stack.Screen 
             name="Login" 
             component={LoginScreen} 
@@ -111,14 +158,19 @@ export default function App() {
             options={{ title: 'Register' }} 
           />
           <Stack.Screen 
+            name="Main" 
+            component={MainTabs}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen 
+            name="ListingDetails" 
+            component={ListingDetailsScreen} 
+            options={{ title: 'Listing Details' }} 
+          />
+          <Stack.Screen 
             name="QRGenerate"
             component={QRGenerateScreen} 
             options={{ title: 'Generate QR Code' }} 
-          />
-          <Stack.Screen 
-            name="QRScanner" 
-            component={QRScannerScreen} 
-            options={{ title: 'Scan QR Code' }} 
           />
           <Stack.Screen 
             name="Chat" 
@@ -130,24 +182,24 @@ export default function App() {
             })} 
           />
           <Stack.Screen 
-            name="Inbox" 
-            component={InboxScreen} 
-            options={{ title: 'Your Messages' }} 
-          />
-          <Stack.Screen 
             name="Rating" 
             component={RatingScreen}
             options={{ title: 'Rate Seller' }}
           />
           <Stack.Screen 
-            name="Profile" 
-            component={ProfileScreen} 
-            options={{ title: 'My Profile' }} 
-          />
-          <Stack.Screen 
             name="EditBasicProfile" 
             component={EditBasicProfileScreen} 
             options={{ title: 'Edit Profile' }} 
+          />
+          <Stack.Screen 
+            name="YourListings" 
+            component={YourListingsScreen} 
+            options={{ title: 'Your Listing' }} 
+          />
+          <Stack.Screen 
+            name="CreateListing" 
+            component={CreateListingScreen} 
+            options={{ title: 'Create Listing' }} 
           />
           <Stack.Screen 
             name="ChangeEmail" 

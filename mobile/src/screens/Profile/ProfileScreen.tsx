@@ -16,6 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import client from '@/api/client';
 import { useUser } from '@/contexts/UserContext';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { BACKEND_BASE_URL } from '@/config';
 import { RootStackParamList } from '@/types/navigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -136,36 +137,26 @@ const styles = StyleSheet.create({
 
 export default function ProfileScreen() {
   const navigation = useNavigation<ProfileScreenProp>();
-  const { user, setUser } = useUser();
-  const [profile, setProfile] = useState({
-    name: '',
-    avatar: '',
-    rating: 0,
-    listingsCount: 0,
-  });
+  const { user, refreshUser } = useUser();
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
+  const [stats, setStats] = useState({
+    rating: 0,
+    listingsCount: 0
+  });
+  
   const loadProfile = async () => {
     try {
-      const response = await client.get(`/users/${user?.id}`);
-      
-      setProfile({
-        name: response.data.name || user?.email.split('@')[0] || 'User',
-        avatar: response.data.avatar ? 
-          `${BACKEND_BASE_URL}${response.data.avatar}` : '',
-        rating: response.data.rating || 0,
-        listingsCount: response.data.listings_count || 0,
-      });
-      
+      await refreshUser(); // This will update the user context
+      if (user?.id) {
+        const response = await client.get(`/users/${user.id}`);
+        setStats({
+          rating: response.data.rating || 0,
+          listingsCount: response.data.listings_count || 0
+        });
+      }
     } catch (error) {
       console.error('Failed to load profile:', error);
-      setProfile({
-        name: user?.email.split('@')[0] || 'User',
-        avatar: '',
-        rating: 0,
-        listingsCount: 0,
-      });
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -177,6 +168,13 @@ export default function ProfileScreen() {
       loadProfile();
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      refreshUser();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -190,50 +188,38 @@ export default function ProfileScreen() {
         Alert.alert('Permission required', 'Please allow access to your photos');
         return;
       }
-
+  
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
       });
-
-      if (!result.canceled && result.assets[0].uri) {
+  
+      if (!result.canceled && result.assets[0].uri && user) {
         setIsLoading(true);
         
-        // Create FormData
-        const formData = new FormData();
-        formData.append('image', {
-          uri: result.assets[0].uri,
-          name: `avatar_${user?.id}_${Date.now()}.jpg`,
-          type: 'image/jpeg'
-        } as any);
-
-        // Upload image
-        const uploadResponse = await client.post('/upload', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
+        // Read the file as base64
+        const fileData = await FileSystem.readAsStringAsync(result.assets[0].uri, {
+          encoding: FileSystem.EncodingType.Base64,
         });
-
-        // Update profile with new avatar
-        const updateResponse = await client.put(`/users/${user?.id}`, {
-          avatar: uploadResponse.data.url.replace(BACKEND_BASE_URL, ''),
-        });
-
-        // Update local state
-        setProfile(prev => ({ 
-          ...prev, 
-          avatar: uploadResponse.data.url 
-        }));
         
-        // Update user context
-        if (user) {
-          setUser({ 
-            ...user, 
-            avatar: uploadResponse.data.url.replace(BACKEND_BASE_URL, '')
-          });
-        }
+        // Prepare the image data for upload
+        const imageData = {
+          image: `data:image/jpeg;base64,${fileData}`,
+          filename: `avatar_${user.id}_${Date.now()}.jpg`
+        };
+
+        // Upload the image
+        const uploadResponse = await client.post('/upload', imageData);
+        
+        // Update user profile with new avatar
+        await client.put(`/users/${user.id}`, {
+          avatar: uploadResponse.data.url.replace(BACKEND_BASE_URL, '')
+        });
+  
+        // Refresh user data
+        await refreshUser();
       }
     } catch (error: any) {
       console.error('Avatar update error:', error);
@@ -280,38 +266,53 @@ export default function ProfileScreen() {
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
-          {profile.avatar ? (
-            <Image source={{ uri: profile.avatar }} style={styles.avatar} />
+          {user?.avatar ? (
+            <Image 
+              source={{ 
+                uri: `${BACKEND_BASE_URL}${user.avatar}?${Date.now()}`,
+                cache: 'reload'
+              }} 
+              style={styles.avatar}
+            />
           ) : (
             <MaterialIcons name="person" size={50} color="#666" />
           )}
         </TouchableOpacity>
         
         <View style={styles.userInfo}>
-          <Text style={styles.name}>{profile.name}</Text>
+          <Text style={styles.name}>
+            {user?.name || user?.email?.split('@')[0] || 'User'}
+          </Text>
+          
           <Text style={styles.email}>{user?.email}</Text>
-          {user?.bio && <Text style={styles.bioText}>{user.bio}</Text>}
-  
+          
+          {/* Display bio if it exists */}
+          {user?.bio && user.bio.trim() !== '' && (
+            <Text style={styles.bioText}>{user.bio}</Text>
+          )}
+          
           <View style={styles.detailsContainer}>
-            {user?.location && (
+            {/* Display location if it exists */}
+            {user?.location && user.location.trim() !== '' && (
               <View style={styles.detailRow}>
                 <MaterialIcons name="location-on" size={16} color="#666" />
                 <Text style={styles.detailText}>{user.location}</Text>
               </View>
             )}
             
-            {user?.phone && (
+            {/* Display phone if it exists */}
+            {user?.phone && user.phone.trim() !== '' && (
               <View style={styles.detailRow}>
                 <MaterialIcons name="phone" size={16} color="#666" />
                 <Text style={styles.detailText}>{user.phone}</Text>
               </View>
             )}
           </View>
-
+    
           <View style={styles.ratingContainer}>
             <MaterialIcons name="star" size={20} color="#FFD700" />
             <Text style={styles.ratingText}>
-              {profile.rating.toFixed(1)} ({profile.listingsCount} listings)
+              {stats.rating.toFixed(1)} ({stats.listingsCount} listings)
             </Text>
           </View>
         </View>

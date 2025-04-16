@@ -19,12 +19,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import client from '@/api/client';
 import { isAxiosError } from 'axios';
 import { MaterialIcons } from '@expo/vector-icons';
-import { BACKEND_BASE_URL } from '@/config';
+import { RouteProp } from '@react-navigation/native';
 
-type MarketplaceScreenProp = NativeStackNavigationProp<
-  RootStackParamList,
-  'Marketplace'
->;
+type MarketplaceScreenProp = NativeStackNavigationProp<RootStackParamList,'Marketplace'>;
+type MarketplaceRouteProp = RouteProp<RootStackParamList, 'Marketplace'>;
 
 interface Listing {
     id: number;
@@ -38,15 +36,20 @@ interface Listing {
     created_at: string;
     updated_at: string;
   }
+
+interface MarketplaceScreenProps {
+  route: MarketplaceRouteProp;
+}
   
-  const { width } = Dimensions.get('window');
-  const ITEM_WIDTH = (width - 40) / 2;
+const { width } = Dimensions.get('window');
+const ITEM_WIDTH = (width - 40) / 2;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 10,
     backgroundColor: '#f5f5f5',
+    marginBottom: 60,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -154,7 +157,7 @@ const CATEGORIES = [
   'Other',
 ];
 
-export default function MarketplaceScreen() {
+export default function MarketplaceScreen({ route }: MarketplaceScreenProps) {
   const navigation = useNavigation<MarketplaceScreenProp>();
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -197,6 +200,15 @@ export default function MarketplaceScreen() {
   useEffect(() => {
     fetchListings();
   }, [searchQuery, selectedCategory]);
+
+  useEffect(() => {
+    fetchListings();
+    
+    // Add this to handle refresh from CreateListingScreen
+    if (route.params?.refreshTimestamp) {
+      fetchListings();
+    }
+  }, [searchQuery, selectedCategory, route.params?.refreshTimestamp]);
 
   const onRefresh = () => {
     setRefreshing(true);

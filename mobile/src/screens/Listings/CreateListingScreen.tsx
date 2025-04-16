@@ -6,12 +6,10 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '@/types/navigation';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { launchImageLibrary } from 'react-native-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import client from '@/api/client';
 import { isAxiosError } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type CreateListingScreenProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -23,12 +21,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: '#fff',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
   },
   input: {
     height: 50,
@@ -144,7 +136,6 @@ export default function CreateListingScreen() {
 
     setIsLoading(true);
 
- 
     try {
       // 1. Upload image
       const fileInfo = await FileSystem.getInfoAsync(image);
@@ -158,13 +149,13 @@ export default function CreateListingScreen() {
         filename: `listing_${Date.now()}.${fileExt}`
       });
   
-      // 2. Create listing - ensure field names match backend
+      // 2. Create listing
       const response = await client.post('/listings', {
         title: title.trim(),
         description: description.trim(),
-        price: priceNumber,  // Already validated
+        price: priceNumber,
         category: category.trim(),
-        image_url: uploadResponse.data.url  // Must match backend expectation
+        image_url: uploadResponse.data.url
       }, {
         headers: {
           'Content-Type': 'application/json'
@@ -173,7 +164,8 @@ export default function CreateListingScreen() {
   
       if (response.status === 201) {
         Alert.alert('Success', 'Listing created!');
-        navigation.goBack();
+        // Navigate back to Marketplace with refresh parameter
+        navigation.navigate('Marketplace', { refreshTimestamp: Date.now() });
       }
     } catch (error) {
       let errorDetails = '';
@@ -192,7 +184,6 @@ export default function CreateListingScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Create New Listing</Text>
 
       <View style={styles.imageContainer}>
         {image && (

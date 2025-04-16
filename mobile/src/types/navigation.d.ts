@@ -3,8 +3,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined; 
-  Home: undefined;
-  Marketplace: undefined;
+  Main: undefined;
+  Marketplace: {
+    refreshTimestamp?: number;
+  };
   YourListings: undefined;
   Listings: undefined;
   CreateListing: undefined;
@@ -16,7 +18,7 @@ export type RootStackParamList = {
     roomId: number;
     listingId: number;
     sellerId: number;
-    buyerId: number; // Add this
+    buyerId: number; 
     listingTitle: string;
   };
   Rating: {
@@ -32,6 +34,14 @@ export type RootStackParamList = {
   ChangeEmail: undefined;
   ChangePassword: undefined;
   // Add other screens here as you create them
+};
+
+export type MainTabParamList = {
+  Marketplace: { refreshTimestamp?: number };
+  CreateListing: undefined;
+  QRScanner: undefined;
+  Inbox: undefined;
+  Profile: undefined;
 };
 
 declare global {

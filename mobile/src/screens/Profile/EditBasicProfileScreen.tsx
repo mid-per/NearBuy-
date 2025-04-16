@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
 });
 
 export default function EditBasicProfileScreen() {
-  const { user, setUser } = useUser();
+  const { user, updateUserField, refreshUser } = useUser();
   const navigation = useNavigation();
   const [form, setForm] = useState({
     name: user?.name || '',
@@ -105,31 +105,42 @@ export default function EditBasicProfileScreen() {
     try {
       setIsLoading(true);
       if (!user) throw new Error('User not authenticated');
-
-      const formData = new FormData();
-      formData.append('name', form.name);
-      formData.append('bio', form.bio);
-      formData.append('location', form.location);
-      formData.append('phone', form.phone);
-
+  
+      // Create a plain object for non-file data
+      const profileData = {
+        name: form.name,
+        bio: form.bio,
+        location: form.location,
+        phone: form.phone
+      };
+  
+      // If we have a new avatar, use FormData
       if (form.avatar && form.avatar.startsWith('file:')) {
+        const formData = new FormData();
+        Object.entries(profileData).forEach(([key, value]) => {
+          formData.append(key, value);
+        });
+  
         const fileExt = form.avatar.split('.').pop()?.toLowerCase() || 'jpg';
         formData.append('avatar', {
           uri: form.avatar,
           name: `avatar_${user.id}.${fileExt}`,
           type: `image/${fileExt}`
         } as any);
-      } else if (form.avatar === null) {
-        formData.append('avatar', '');
+  
+        await client.put(`/users/${user.id}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+      } else {
+        // No avatar update, just send as JSON
+        await client.put(`/users/${user.id}`, profileData);
       }
-
-      const { data } = await client.put(`/users/${user.id}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+  
+      // Force full refresh with cache busting
+      await refreshUser();
       
-      setUser({ ...user, ...data });
       Alert.alert('Success', 'Profile updated');
       navigation.goBack();
     } catch (error: any) {
@@ -138,7 +149,7 @@ export default function EditBasicProfileScreen() {
       setIsLoading(false);
     }
   };
-
+  
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
