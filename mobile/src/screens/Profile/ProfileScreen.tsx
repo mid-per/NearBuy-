@@ -322,7 +322,14 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>My Listings</Text>
         <TouchableOpacity 
           style={styles.button}
-          onPress={() => navigation.navigate('YourListings')}
+          onPress={() => {
+            if (user?.id) {
+              navigation.navigate('SellerListings', {
+                sellerId: user.id,
+                sellerName: user.name || user.email?.split('@')[0],
+              });
+            }
+          }}
         >
           <Text style={styles.buttonText}>View My Listings</Text>
         </TouchableOpacity>

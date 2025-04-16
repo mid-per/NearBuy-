@@ -120,7 +120,10 @@ export default function RegisterScreen() {
           email: email,
           name: null, // or get from response if available
           avatar: null, // or get from response if available
-          is_admin: false 
+          is_admin: false,
+          bio: null,
+          location: null,
+          phone: null
         });
         
         // Navigate after all state is updated

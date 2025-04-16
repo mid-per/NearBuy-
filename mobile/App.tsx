@@ -13,7 +13,7 @@ import RegisterScreen from '@/screens/Auth/RegisterScreen';
 import MarketplaceScreen from '@/screens/Listings/MarketplaceScreen';
 import CreateListingScreen from '@/screens/Listings/CreateListingScreen';
 import ListingDetailsScreen from '@/screens/Listings/ListingDetailsScreen';
-import YourListingsScreen from '@/screens/Listings/YourListingsScreen'
+import SellerListingsScreen from '@/screens/Listings/SellerListingsScreen';
 import QRGenerateScreen from '@/screens/Transactions/QRGenerateScreen';
 import QRScannerScreen from '@/screens/Transactions/QRScannerScreen';
 import InboxScreen from '@/screens/Inbox/InboxScreen';
@@ -198,9 +198,9 @@ export default function App() {
             options={{ title: 'Public Profile' }} 
           />
           <Stack.Screen 
-            name="YourListings" 
-            component={YourListingsScreen} 
-            options={{ title: 'Your Listing' }} 
+            name="SellerListings" 
+            component={SellerListingsScreen} 
+            options={{ title: 'Seller Listing' }} 
           />
           <Stack.Screen 
             name="CreateListing" 

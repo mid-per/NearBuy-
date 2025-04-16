@@ -92,7 +92,10 @@ export default function LoginScreen() {
           email: response.data.email,
           name: null, // or get from response if available
           avatar: null, // or get from response if available
-          is_admin: false 
+          is_admin: false,
+          bio: null,
+          location: null,
+          phone: null
         });
   
         navigation.navigate('Main');

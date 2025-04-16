@@ -42,7 +42,7 @@ class Transaction(db.Model):
     listing_id = db.Column(db.Integer, db.ForeignKey('listings.id'))
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)) #Should record when the transaction was initially created (QR generated)
     completed = db.Column(db.Boolean, default=False)
-    completed_at = db.Column(db.DateTime)  # Records when the transaction was marked as completed (after QR confirmation)
+    completed_at = db.Column(db.DateTime(timezone=True))  # Records when the transaction was marked as completed (after QR confirmation)
     rating = db.Column(db.Integer, nullable=True)  # Rating (1-5 stars)
     feedback = db.Column(db.Text, nullable=True)   # Optional text feedback
     status = db.Column(db.String(20), default='pending')  # pending/completed/disputed/refunded

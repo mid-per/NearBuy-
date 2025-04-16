@@ -240,7 +240,9 @@ export default function ListingDetailsScreen() {
 
   const handleViewSellerProfile = () => {
     if (listing) {
-      navigation.navigate('PublicProfile', { userId: listing.seller_id });
+      navigation.navigate('PublicProfile', { 
+        userId: listing.seller_id 
+      });
     }
   };
 

@@ -1,4 +1,4 @@
-// src/screens/Listings/YourListingsScreen.tsx
+// src/screens/Listings/SellerListingsScreen.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -12,7 +12,7 @@ import {
   SafeAreaView,
   Dimensions,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '@/types/navigation';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import client from '@/api/client';
@@ -21,10 +21,19 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Listing } from '@/types/listing';
 import { useUser } from '@/contexts/UserContext';
 
-type YourListingsScreenProp = NativeStackNavigationProp<
+type SellerListingsScreenProp = NativeStackNavigationProp<
   RootStackParamList,
-  'YourListings'
+  'SellerListings'
 >;
+
+interface SellerListingsScreenProps {
+  route: {
+    params: {
+      sellerId: number;
+      sellerName?: string;
+    };
+  };
+}
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = (width - 40) / 2;
@@ -105,8 +114,13 @@ const styles = StyleSheet.create({
   },
 });
 
-export default function YourListingsScreen() {
-  const navigation = useNavigation<YourListingsScreenProp>();
+export default function SellerListingsScreen() {
+  const navigation = useNavigation<SellerListingsScreenProp>();
+  const route = useRoute();
+  const { sellerId, sellerName } = route.params as { 
+    sellerId: number; 
+    sellerName?: string 
+  };
   const { user } = useUser();
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,13 +128,11 @@ export default function YourListingsScreen() {
   const [error, setError] = useState('');
 
   const fetchListings = async () => {
-    if (!user?.id) return;
-    
     try {
       const response = await client.get('/listings/search', {
         params: { 
-          seller_id: user.id,
-          // Remove the status filter to get all listings
+          seller_id: sellerId,
+          status: 'active' // Only show active listings
         }
       });
       setListings(response.data.results);
@@ -128,9 +140,9 @@ export default function YourListingsScreen() {
     } catch (err) {
       console.error('Failed to fetch listings:', err);
       if (isAxiosError(err)) {
-        setError(err.response?.data?.error || 'Failed to load your listings');
+        setError(err.response?.data?.error || 'Failed to load listings');
       } else {
-        setError('Failed to load your listings');
+        setError('Failed to load listings');
       }
     } finally {
       setLoading(false);
@@ -140,7 +152,7 @@ export default function YourListingsScreen() {
 
   useEffect(() => {
     fetchListings();
-  }, [user?.id]);
+  }, [sellerId]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -214,25 +226,17 @@ export default function YourListingsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerText}>Your Listings</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('CreateListing')}>
-          <MaterialIcons name="add" size={24} color="#007AFF" />
-        </TouchableOpacity>
+        <Text style={styles.headerText}>
+          {sellerName ? `${sellerName}'s Listings` : 'Listings'}
+        </Text>
+        {/* Create listing button has been removed completely */}
       </View>
 
       {listings.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>
-            You haven't created any listings yet.
+            {sellerName ? `${sellerName} hasn't listed any items yet` : 'No listings found'}
           </Text>
-          <TouchableOpacity 
-            style={{ marginTop: 10 }}
-            onPress={() => navigation.navigate('CreateListing')}
-          >
-            <Text style={{ color: '#007AFF', fontWeight: 'bold' }}>
-              Create your first listing
-            </Text>
-          </TouchableOpacity>
         </View>
       ) : (
         <FlatList

@@ -93,7 +93,7 @@ export default function QRGenerateScreen() {
         <View style={{ marginTop: 10 }}>
           <Button
             title="Back to Home"
-            onPress={() => navigation.navigate('Home')}
+            onPress={() => navigation.navigate('Main')}
           />
         </View>
       </View>

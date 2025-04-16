@@ -7,7 +7,6 @@ export type RootStackParamList = {
   Marketplace: {
     refreshTimestamp?: number;
   };
-  YourListings: undefined;
   Listings: undefined;
   CreateListing: undefined;
   QRGenerate: { listingId: string }; 
@@ -31,9 +30,14 @@ export type RootStackParamList = {
   };
   Profile: undefined;
   PublicProfile: { userId: number };
+  SellerListings: {
+    sellerId: number;
+    sellerName?: string; 
+  };
   EditBasicProfile: undefined;
   ChangeEmail: undefined;
   ChangePassword: undefined;
+  
   // Add other screens here as you create them
 };
 
