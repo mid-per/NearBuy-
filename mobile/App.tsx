@@ -19,6 +19,7 @@ import QRScannerScreen from '@/screens/Transactions/QRScannerScreen';
 import InboxScreen from '@/screens/Inbox/InboxScreen';
 import ChatScreen from '@/screens/Chat/ChatScreen';
 import ProfileScreen from '@/screens/Profile/ProfileScreen';
+import PublicProfileScreen from '@/screens/Profile/PublicProfileScreen';
 import RatingScreen from '@/screens/Transactions/RatingScreen';
 import EditBasicProfileScreen from '@/screens/Profile/EditBasicProfileScreen';
 import ChangeEmailScreen from '@/screens/Profile/ChangeEmailScreen';
@@ -190,6 +191,11 @@ export default function App() {
             name="EditBasicProfile" 
             component={EditBasicProfileScreen} 
             options={{ title: 'Edit Profile' }} 
+          />
+          <Stack.Screen 
+            name="PublicProfile" 
+            component={PublicProfileScreen} 
+            options={{ title: 'Public Profile' }} 
           />
           <Stack.Screen 
             name="YourListings" 

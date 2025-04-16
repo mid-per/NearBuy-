@@ -46,12 +46,6 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     marginBottom: 5,
   },
-  sellerInfo: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 15,
-    fontStyle: 'italic',
-  },
   category: {
     fontSize: 16,
     color: '#666',
@@ -72,7 +66,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 20,
-    width: '100%', // Full width of container
+    width: '100%',
   },
   qrButton: {
     backgroundColor: '#34C759',
@@ -95,15 +89,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  backButton: {
-    position: 'absolute',
-    top: 40,
-    left: 20,
-    zIndex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 20,
-    padding: 5,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -115,6 +100,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  sellerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  sellerAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  sellerInfo: {
+    flex: 1,
+  },
+  sellerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  viewProfileText: {
+    fontSize: 14,
+    color: '#007AFF',
+  },
 });
 
 export default function ListingDetailsScreen() {
@@ -124,54 +139,56 @@ export default function ListingDetailsScreen() {
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [sellerEmail, setSellerEmail] = useState('');
   const { user } = useUser();
   const [listingStatus, setListingStatus] = useState<'available' | 'sold'>('available');
   const [sellerInfo, setSellerInfo] = useState({
     name: '',
-    avatar: ''
+    avatar: '',
+    email: ''
   });
 
   useEffect(() => {
     const fetchListingDetails = async () => {
       try {
         setLoading(true);
-        // 1. Fetch listing details
         const listingResponse = await client.get(`/listings/${listingId}`);
         setListing(listingResponse.data);
-        
-      // 2. Check if listing is sold directly from its status
-      setListingStatus(listingResponse.data.status === 'sold' ? 'sold' : 'available');
+        setListingStatus(listingResponse.data.status === 'sold' ? 'sold' : 'available');
       
-      // 3. Fetch seller info
-      if (listingResponse.data?.seller_id) {
-        try {
-          const sellerResponse = await client.get(`/users/${listingResponse.data.seller_id}`);
-          setSellerEmail(sellerResponse.data.email);
-        } catch (sellerError) {
-          console.log('Using fallback seller info');
-          setSellerEmail(`User ${listingResponse.data.seller_id}`);
+        if (listingResponse.data?.seller_id) {
+          try {
+            const sellerResponse = await client.get(`/users/${listingResponse.data.seller_id}`);
+            setSellerInfo({
+              name: sellerResponse.data.name || sellerResponse.data.email.split('@')[0],
+              avatar: sellerResponse.data.avatar || '',
+              email: sellerResponse.data.email
+            });
+          } catch (sellerError) {
+            console.log('Using fallback seller info');
+            setSellerInfo({
+              name: `User ${listingResponse.data.seller_id}`,
+              avatar: '',
+              email: ''
+            });
+          }
         }
+      } catch (err) {
+        console.error('Failed to fetch listing:', err);
+        if (isAxiosError(err)) {
+          setError(err.response?.status === 404 
+            ? 'Listing not found' 
+            : err.response?.data?.error || 'Failed to load listing'
+          );
+        } else {
+          setError('Failed to load listing');
+        }
+      } finally {
+        setLoading(false);
       }
-      
-    } catch (err) {
-      console.error('Failed to fetch listing:', err);
-      if (isAxiosError(err)) {
-        setError(err.response?.status === 404 
-          ? 'Listing not found' 
-          : err.response?.data?.error || 'Failed to load listing'
-        );
-      } else {
-        setError('Failed to load listing');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  fetchListingDetails();
-}, [listingId]);
-
+    fetchListingDetails();
+  }, [listingId]);
 
   const handleContactSeller = async () => {
     if (!user) {
@@ -221,6 +238,12 @@ export default function ListingDetailsScreen() {
     navigation.navigate('QRGenerate', { listingId: listing.id.toString() });
   };
 
+  const handleViewSellerProfile = () => {
+    if (listing) {
+      navigation.navigate('PublicProfile', { userId: listing.seller_id });
+    }
+  };
+
   const isOwner = user && listing && user.id === listing.seller_id;
 
   if (loading) {
@@ -244,13 +267,6 @@ export default function ListingDetailsScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <TouchableOpacity 
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-      >
-        <MaterialIcons name="arrow-back" size={24} color="#fff" />
-      </TouchableOpacity>
-
       <Image
         source={{
           uri: listing.image_url 
@@ -266,35 +282,55 @@ export default function ListingDetailsScreen() {
       <View style={styles.content}>
         <Text style={styles.title}>{listing.title}</Text>
         <Text style={styles.price}>${listing.price.toFixed(2)}</Text>
-        <Text style={styles.sellerInfo}>Sold by: {sellerEmail || `User ${listing.seller_id}`}</Text>
         <Text style={styles.category}>Category: {listing.category}</Text>
         <Text style={styles.description}>{listing.description || 'No description provided'}</Text>
+        
+        {/* Seller Info Section */}
+        <TouchableOpacity 
+          style={styles.sellerContainer}
+          onPress={handleViewSellerProfile}
+        >
+          <View style={styles.sellerAvatar}>
+            {sellerInfo.avatar ? (
+              <Image 
+                source={{ uri: `${BACKEND_BASE_URL}${sellerInfo.avatar}` }}
+                style={{ width: '100%', height: '100%' }}
+              />
+            ) : (
+              <MaterialIcons name="person" size={24} color="#666" />
+            )}
+          </View>
+          <View style={styles.sellerInfo}>
+            <Text style={styles.sellerName}>{sellerInfo.name}</Text>
+            <Text style={styles.viewProfileText}>View Profile</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.buttonContainer}>
-      {listingStatus === 'sold' ? (
-        <TouchableOpacity 
-          style={styles.soldButton}
-          disabled
-        >
-          <Text style={styles.buttonText}>SOLD</Text>
-        </TouchableOpacity>
-      ) : isOwner ? (
-        <TouchableOpacity 
-          style={styles.qrButton} 
-          onPress={handleGenerateQR}
-        >
-          <Text style={styles.buttonText}>Generate QR Code</Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity 
-          style={styles.button} 
-          onPress={handleContactSeller}
-        >
-          <Text style={styles.buttonText}>Contact Seller</Text>
-        </TouchableOpacity>
-      )}
-    </View>
+        {listingStatus === 'sold' ? (
+          <TouchableOpacity 
+            style={styles.soldButton}
+            disabled
+          >
+            <Text style={styles.buttonText}>SOLD</Text>
+          </TouchableOpacity>
+        ) : isOwner ? (
+          <TouchableOpacity 
+            style={styles.qrButton} 
+            onPress={handleGenerateQR}
+          >
+            <Text style={styles.buttonText}>Generate QR Code</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={styles.button} 
+            onPress={handleContactSeller}
+          >
+            <Text style={styles.buttonText}>Contact Seller</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </ScrollView>
   );
 }

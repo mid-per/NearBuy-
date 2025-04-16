@@ -30,6 +30,7 @@ export type RootStackParamList = {
     };
   };
   Profile: undefined;
+  PublicProfile: { userId: number };
   EditBasicProfile: undefined;
   ChangeEmail: undefined;
   ChangePassword: undefined;
