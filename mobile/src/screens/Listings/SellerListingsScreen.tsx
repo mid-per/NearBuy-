@@ -20,6 +20,7 @@ import { isAxiosError } from 'axios';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Listing } from '@/types/listing';
 import { useUser } from '@/contexts/UserContext';
+import { useLayoutEffect } from 'react';
 
 type SellerListingsScreenProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -127,14 +128,24 @@ export default function SellerListingsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: sellerName ? `${sellerName}'s Listings` : 'Listings',
+      headerBackTitle: 'Back',
+    });
+  }, [navigation, sellerName]);
+  
   const fetchListings = async () => {
     try {
-      const response = await client.get('/listings/search', {
-        params: { 
-          seller_id: sellerId,
-          status: 'active' // Only show active listings
-        }
-      });
+      const params: any = { 
+        seller_id: sellerId,
+      };
+
+      if (!user || user.id !== sellerId) {
+        params.status = 'active';
+      }
+
+      const response = await client.get('/listings/search', { params });
       setListings(response.data.results);
       setError('');
     } catch (err) {
@@ -165,10 +176,7 @@ export default function SellerListingsScreen() {
 
   const renderItem = ({ item }: { item: Listing }) => (
     <TouchableOpacity
-      style={[
-        styles.itemContainer,
-        item.status === 'sold' && { opacity: 0.6 }
-      ]}
+      style={styles.itemContainer}
       onPress={() => handleListingPress(item)}
     >
       {item.status === 'sold' && (
@@ -180,13 +188,16 @@ export default function SellerListingsScreen() {
         source={{
           uri: item.image_url || 'https://via.placeholder.com/300'
         }}
-        style={styles.itemImage}
+        style={[
+          styles.itemImage,
+          item.status === 'sold' && { opacity: 0.7 }
+        ]}
       />
       <View style={styles.itemDetails}>
         <Text 
           style={[
             styles.itemTitle,
-            item.status === 'sold' && { color: '#888', textDecorationLine: 'line-through' }
+            item.status === 'sold' && { color: '#888' }
           ]} 
           numberOfLines={1}
         >
@@ -225,13 +236,6 @@ export default function SellerListingsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>
-          {sellerName ? `${sellerName}'s Listings` : 'Listings'}
-        </Text>
-        {/* Create listing button has been removed completely */}
-      </View>
-
       {listings.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>
@@ -248,6 +252,7 @@ export default function SellerListingsScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
+          contentContainerStyle={{ paddingTop: 10 }}
         />
       )}
     </SafeAreaView>

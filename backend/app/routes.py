@@ -32,34 +32,6 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
-###################################################################
-#temporary for testing frontend 
-@bp.route('/create-test-users', methods=['POST'])
-def create_test_users():
-    # Create two users with different emails but the same password
-    user1 = User(
-        email='user1@example.com',
-        password=generate_password_hash('testpassword'),
-        is_admin=False
-    )
-    user2 = User(
-        email='user2@example.com',
-        password=generate_password_hash('testpassword'),
-        is_admin=False
-    )
-
-    # Add users to the session and commit the transaction
-    db.session.add(user1)
-    db.session.add(user2)
-    db.session.commit()
-
-    return jsonify({"message": "Test users created"}), 201
-
-@bp.route('/healthcheck')
-def healthcheck():
-    return jsonify({"message": "Backend operational", "status": "healthy"})
-
-###################################################################
 # Register (Customers or Admins)
 @bp.route('/register', methods=['POST'])
 @limiter.limit("10 per minute")

@@ -1,4 +1,3 @@
-// src/screens/Listings/MarketplaceScreen.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -10,7 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
   RefreshControl,
-  SafeAreaView,
+  ScrollView,
   Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -25,49 +24,78 @@ type MarketplaceScreenProp = NativeStackNavigationProp<RootStackParamList,'Marke
 type MarketplaceRouteProp = RouteProp<RootStackParamList, 'Marketplace'>;
 
 interface Listing {
-    id: number;
-    title: string;
-    description: string;
-    price: number;
-    category: string;
-    image_url: string;
-    seller_id: number;
-    status: string;
-    created_at: string;
-    updated_at: string;
-  }
+  id: number;
+  title: string;
+  description: string;
+  price: number;
+  category: string;
+  image_url: string;
+  seller_id: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
 
 interface MarketplaceScreenProps {
   route: MarketplaceRouteProp;
 }
-  
+
 const { width } = Dimensions.get('window');
-const ITEM_WIDTH = (width - 40) / 2;
+const ITEM_WIDTH = (width - 60) / 2; // Adjusted spacing
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
-    backgroundColor: '#f5f5f5',
-    marginBottom: 60,
+    backgroundColor: '#fff',
+    paddingBottom: 20,
+  },
+  contentContainer: {
+    paddingHorizontal: 20,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    marginVertical: 15,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  searchIcon: {
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    height: 40,
-    paddingHorizontal: 10,
+    height: 50,
+    fontSize: 16,
+    color: '#333',
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 15,
+  },
+  filterButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#f5f5f5',
+    marginRight: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  activeFilter: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  filterText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  activeFilterText: {
+    color: '#fff',
   },
   gridContainer: {
     paddingHorizontal: 5,
@@ -75,76 +103,59 @@ const styles = StyleSheet.create({
   itemContainer: {
     width: ITEM_WIDTH,
     backgroundColor: '#fff',
-    borderRadius: 8,
+    borderRadius: 10,
     margin: 5,
     overflow: 'hidden',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
   itemImage: {
     width: '100%',
     height: ITEM_WIDTH,
     resizeMode: 'cover',
+    backgroundColor: '#f5f5f5',
   },
   itemDetails: {
-    padding: 10,
+    padding: 12,
   },
   itemTitle: {
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 5,
+    color: '#333',
   },
   itemPrice: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#007AFF',
   },
+  soldText: {
+    color: '#FF3B30',
+    textDecorationLine: 'line-through'
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 40,
   },
   emptyText: {
     fontSize: 16,
-    color: '#888',
+    color: '#666',
     textAlign: 'center',
+    marginBottom: 20,
   },
-  filterContainer: {
-    flexDirection: 'row',
-    marginBottom: 10,
+  retryText: {
+    color: '#007AFF',
+    fontWeight: 'bold',
   },
-  filterButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#e0e0e0',
-    marginRight: 10,
-  },
-  activeFilter: {
-    backgroundColor: '#007AFF',
-  },
-  filterText: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
     color: '#333',
+    marginVertical: 15,
+    marginLeft: 5,
   },
-  activeFilterText: {
-    color: '#fff',
-  },
-  soldText: {
-    color: 'red',
-    textDecorationLine: 'line-through'
-  },
-  soldPrice: {
-    color: 'red',
-    fontWeight: 'bold'
-  },
-  disabledButton: {
-    backgroundColor: 'gray',
-    opacity: 0.7
-  }
 });
 
 const CATEGORIES = [
@@ -204,11 +215,10 @@ export default function MarketplaceScreen({ route }: MarketplaceScreenProps) {
   useEffect(() => {
     fetchListings();
     
-    // Add this to handle refresh from CreateListingScreen
     if (route.params?.refreshTimestamp) {
       fetchListings();
     }
-  }, [searchQuery, selectedCategory, route.params?.refreshTimestamp]);
+  }, [route.params?.refreshTimestamp]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -223,7 +233,7 @@ export default function MarketplaceScreen({ route }: MarketplaceScreenProps) {
     <TouchableOpacity
       style={[
         styles.itemContainer,
-        item.status === 'sold' && { opacity: 0.6 }
+        item.status === 'sold' && { opacity: 0.7 }
       ]}
       onPress={() => handleListingPress(item)}
     >
@@ -235,13 +245,16 @@ export default function MarketplaceScreen({ route }: MarketplaceScreenProps) {
         <Text 
           style={[
             styles.itemTitle, 
-            item.status === 'sold' && { color: 'red', textDecorationLine: 'line-through' }
+            item.status === 'sold' && styles.soldText
           ]}
           numberOfLines={1}
         >
           {item.title}
         </Text>
-        <Text style={styles.itemPrice}>
+        <Text style={[
+          styles.itemPrice,
+          item.status === 'sold' && styles.soldText
+        ]}>
           {item.status === 'sold' ? 'SOLD' : `$${item.price.toFixed(2)}`}
         </Text>
       </View>
@@ -250,8 +263,8 @@ export default function MarketplaceScreen({ route }: MarketplaceScreenProps) {
 
   if (loading && !refreshing) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" />
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
   }
@@ -261,67 +274,87 @@ export default function MarketplaceScreen({ route }: MarketplaceScreenProps) {
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyText}>{error}</Text>
         <TouchableOpacity onPress={fetchListings}>
-          <Text style={[styles.emptyText, { color: '#007AFF' }]}>
-            Tap to retry
-          </Text>
+          <Text style={styles.retryText}>Tap to retry</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.searchContainer}>
-        <MaterialIcons name="search" size={20} color="#888" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search listings..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          returnKeyType="search"
-        />
-      </View>
-
-      <View style={styles.filterContainer}>
-        {CATEGORIES.map((category) => (
-          <TouchableOpacity
-            key={category}
-            style={[
-              styles.filterButton,
-              selectedCategory === category && styles.activeFilter,
-            ]}
-            onPress={() => setSelectedCategory(category)}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                selectedCategory === category && styles.activeFilterText,
-              ]}
-            >
-              {category}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {listings.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>
-            No listings found. {searchQuery ? 'Try a different search.' : ''}
-          </Text>
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={['#007AFF']}
+          />
+        }
+      >
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <MaterialIcons 
+            name="search" 
+            size={20} 
+            color="#666" 
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search listings..."
+            placeholderTextColor="#999"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+          />
         </View>
-      ) : (
-        <FlatList
-          data={listings}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id.toString()}
-          numColumns={2}
-          columnWrapperStyle={styles.gridContainer}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        />
-      )}
-    </SafeAreaView>
+
+        {/* Categories Filter */}
+        <Text style={styles.sectionTitle}>Categories</Text>
+        <View style={styles.filterContainer}>
+          {CATEGORIES.map((category) => (
+            <TouchableOpacity
+              key={category}
+              style={[
+                styles.filterButton,
+                selectedCategory === category && styles.activeFilter,
+              ]}
+              onPress={() => setSelectedCategory(category)}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  selectedCategory === category && styles.activeFilterText,
+                ]}
+              >
+                {category}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Listings Grid */}
+        {listings.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              {searchQuery 
+                ? 'No listings match your search' 
+                : 'No listings available right now'}
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={listings}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id.toString()}
+            numColumns={2}
+            columnWrapperStyle={styles.gridContainer}
+            scrollEnabled={false}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          />
+        )}
+      </ScrollView>
+    </View>
   );
 }

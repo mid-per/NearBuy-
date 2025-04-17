@@ -1,14 +1,17 @@
-// src/screens/Listings/ListingDetailsScreen.tsx
-import React, { useState, useEffect } from 'react';
-import { 
+import React, { useState, useEffect, useRef } from 'react';
+import {
   View, 
   Text, 
-  StyleSheet, 
+  StyleSheet,
   Image, 
   ScrollView, 
   ActivityIndicator,
   TouchableOpacity,
-  Alert
+  Alert,
+  Modal,
+  Dimensions,
+  Animated,
+  PanResponder
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '@/types/navigation';
@@ -23,14 +26,21 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ListingDetailsScreenProp = NativeStackNavigationProp<RootStackParamList, 'ListingDetails'>;
 
+const { height } = Dimensions.get('window');
+const PROFILE_HEIGHT = height * 0.75;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
   },
+  scrollContent: {
+    paddingBottom: 20,
+  },
   image: {
     width: '100%',
     height: 300,
+    backgroundColor: '#f5f5f5',
   },
   content: {
     padding: 20,
@@ -39,81 +49,54 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 10,
+    color: '#333',
   },
   price: {
     fontSize: 22,
     fontWeight: 'bold',
     color: '#007AFF',
-    marginBottom: 5,
+    marginBottom: 10,
+  },
+  soldPrice: {
+    color: '#FF3B30',
+    textDecorationLine: 'line-through',
   },
   category: {
     fontSize: 16,
     color: '#666',
-    marginBottom: 5,
+    marginBottom: 15,
+    paddingLeft: 5,
   },
   description: {
     fontSize: 16,
     lineHeight: 24,
-    marginBottom: 20,
+    color: '#333',
+    marginBottom: 25,
+    paddingLeft: 5,
   },
-  buttonContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
-    width: '100%',
-  },
-  qrButton: {
-    backgroundColor: '#34C759',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
-    width: '100%',
-  },
-  soldButton: {
-    backgroundColor: '#FF3B30',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
-    width: '100%',
-  },
-  buttonText: {
-    color: '#fff',
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
-    fontSize: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    color: '#333',
+    marginBottom: 15,
+    paddingLeft: 5,
   },
   sellerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    marginBottom: 25,
+    padding: 15,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   sellerAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 12,
-    backgroundColor: '#f5f5f5',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 15,
+    backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -124,11 +107,161 @@ const styles = StyleSheet.create({
   sellerName: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: 5,
+    color: '#333',
   },
   viewProfileText: {
     fontSize: 14,
     color: '#007AFF',
+    fontWeight: '500',
+  },
+  buttonContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  qrButton: {
+    backgroundColor: '#34C759',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  soldButton: {
+    backgroundColor: '#FF3B30',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#fff',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  retryButton: {
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  profileModalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  profileModalHandle: {
+    width: 40,
+    height: 5,
+    backgroundColor: '#ccc',
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginVertical: 10,
+  },
+  profileModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    width: '100%',
+    // Remove maxHeight temporarily
+    transform: [{ translateY: 0 }] // Default position
+  },
+  profileScrollContent: {
+    flexGrow: 1, // Ensures content can scroll
+  },
+  profileScrollContainer: { 
+    maxHeight: PROFILE_HEIGHT - 60, // Account for padding and handle
+  },
+  profileHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  profileAvatarContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+    overflow: 'hidden',
+  },
+  profileName: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 5,
+    color: '#333',
+  },
+  profileEmail: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 15,
+  },
+  profileSection: {
+    marginBottom: 20,
+  },
+  profileSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
+  },
+  profileBioText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  profileViewListingsButton: {
+    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  profileViewListingsButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingLeft: 5,
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 8,
   },
 });
 
@@ -144,9 +277,63 @@ export default function ListingDetailsScreen() {
   const [sellerInfo, setSellerInfo] = useState({
     name: '',
     avatar: '',
-    email: ''
+    email: '',
+    bio: '',
+    location: '',
+    phone: ''
   });
+  const [showProfile, setShowProfile] = useState(false);
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
+  const toggleProfile = () => {
+    if (showProfile) {
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => setShowProfile(false));
+    } else {
+      setShowProfile(true);
+      slideAnim.setValue(1);
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        bounciness: 0,
+      }).start();
+    }
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dy) > Math.abs(gestureState.dx * 2);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          slideAnim.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const dragThreshold = PROFILE_HEIGHT * 0.4; 
+        
+        if (gestureState.dy > dragThreshold) {
+          Animated.timing(slideAnim, {
+            toValue: PROFILE_HEIGHT,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => setShowProfile(false));
+        } else {
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 6,
+          }).start();
+        }
+      },
+    })
+  ).current;
+  
   useEffect(() => {
     const fetchListingDetails = async () => {
       try {
@@ -161,14 +348,20 @@ export default function ListingDetailsScreen() {
             setSellerInfo({
               name: sellerResponse.data.name || sellerResponse.data.email.split('@')[0],
               avatar: sellerResponse.data.avatar || '',
-              email: sellerResponse.data.email
+              email: sellerResponse.data.email,
+              bio: sellerResponse.data.bio || '',
+              location: sellerResponse.data.location || '',
+              phone: sellerResponse.data.phone || ''
             });
           } catch (sellerError) {
             console.log('Using fallback seller info');
             setSellerInfo({
               name: `User ${listingResponse.data.seller_id}`,
               avatar: '',
-              email: ''
+              email: '',
+              bio: '',
+              location: '',
+              phone: ''
             });
           }
         }
@@ -238,20 +431,105 @@ export default function ListingDetailsScreen() {
     navigation.navigate('QRGenerate', { listingId: listing.id.toString() });
   };
 
-  const handleViewSellerProfile = () => {
-    if (listing) {
-      navigation.navigate('PublicProfile', { 
-        userId: listing.seller_id 
-      });
-    }
+  const renderProfilePanel = () => {
+    if (!listing || !showProfile) return null;
+  
+    return (
+      <Modal
+        transparent
+        visible={showProfile}
+        onRequestClose={toggleProfile}
+        animationType="slide"
+      >
+        <View style={styles.profileModalContainer}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={toggleProfile}
+          />
+          
+          <Animated.View
+            style={[
+              styles.profileModalContent,
+              {
+                transform: [{ translateY: slideAnim }],
+              }
+            ]}
+            {...panResponder.panHandlers}
+          >
+            <View style={styles.profileModalHandle} />
+            
+            <ScrollView 
+              contentContainerStyle={{ paddingBottom: 20 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Seller Profile Header */}
+              <View style={styles.profileHeader}>
+                <View style={styles.profileAvatarContainer}>
+                  {sellerInfo.avatar ? (
+                    <Image 
+                      source={{ uri: `${BACKEND_BASE_URL}${sellerInfo.avatar}` }}
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                  ) : (
+                    <MaterialIcons name="person" size={40} color="#666" />
+                  )}
+                </View>
+                
+                <Text style={styles.profileName}>{sellerInfo.name}</Text>
+                <Text style={styles.profileEmail}>{sellerInfo.email}</Text>
+              </View>
+  
+              {/* Seller Information Section */}
+              {(sellerInfo.bio || sellerInfo.location || sellerInfo.phone) && (
+                <View style={styles.profileSection}>
+                  <Text style={styles.profileSectionTitle}>About</Text>
+                  
+                  {sellerInfo.bio && (
+                    <Text style={styles.profileBioText}>{sellerInfo.bio}</Text>
+                  )}
+                  
+                  {sellerInfo.location && (
+                    <View style={styles.detailRow}>
+                      <MaterialIcons name="location-on" size={18} color="#007AFF" />
+                      <Text style={styles.detailText}>{sellerInfo.location}</Text>
+                    </View>
+                  )}
+                  
+                  {sellerInfo.phone && (
+                    <View style={styles.detailRow}>
+                      <MaterialIcons name="phone" size={18} color="#007AFF" />
+                      <Text style={styles.detailText}>{sellerInfo.phone}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+  
+              {/* View Listings Button */}
+              <TouchableOpacity
+                style={styles.profileViewListingsButton}
+                onPress={() => {
+                  toggleProfile();
+                  navigation.navigate('SellerListings', { 
+                    sellerId: listing.seller_id,
+                    sellerName: sellerInfo.name 
+                  });
+                }}
+              >
+                <Text style={styles.profileViewListingsButtonText}>
+                  View All Listings
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </Animated.View>
+        </View>
+      </Modal>
+    );
   };
-
-  const isOwner = user && listing && user.id === listing.seller_id;
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
   }
@@ -259,80 +537,104 @@ export default function ListingDetailsScreen() {
   if (error || !listing) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={{ marginBottom: 10 }}>{error || 'Listing not found'}</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={{ color: '#007AFF' }}>Go Back</Text>
+        <Text style={styles.errorText}>{error || 'Listing not found'}</Text>
+        <TouchableOpacity 
+          style={styles.retryButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.retryButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
+  const isOwner = user && listing && user.id === listing.seller_id;
+
   return (
-    <ScrollView style={styles.container}>
-      <Image
-        source={{
-          uri: listing.image_url 
-            ? listing.image_url.startsWith('http') 
-              ? listing.image_url
-              : `${BACKEND_BASE_URL}${listing.image_url}`
-            : 'https://via.placeholder.com/300'
-        }}
-        style={styles.image}
-        onError={(e) => console.log('Image load error:', e.nativeEvent.error)}
-      />
+    <View style={{ flex: 1 }}>
+      <ScrollView 
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <Image
+          source={{
+            uri: listing.image_url 
+              ? listing.image_url.startsWith('http') 
+                ? listing.image_url
+                : `${BACKEND_BASE_URL}${listing.image_url}`
+              : 'https://via.placeholder.com/300'
+          }}
+          style={styles.image}
+          onError={(e) => console.log('Image load error:', e.nativeEvent.error)}
+        />
 
-      <View style={styles.content}>
-        <Text style={styles.title}>{listing.title}</Text>
-        <Text style={styles.price}>${listing.price.toFixed(2)}</Text>
-        <Text style={styles.category}>Category: {listing.category}</Text>
-        <Text style={styles.description}>{listing.description || 'No description provided'}</Text>
-        
-        {/* Seller Info Section */}
-        <TouchableOpacity 
-          style={styles.sellerContainer}
-          onPress={handleViewSellerProfile}
-        >
-          <View style={styles.sellerAvatar}>
-            {sellerInfo.avatar ? (
-              <Image 
-                source={{ uri: `${BACKEND_BASE_URL}${sellerInfo.avatar}` }}
-                style={{ width: '100%', height: '100%' }}
-              />
-            ) : (
-              <MaterialIcons name="person" size={24} color="#666" />
-            )}
+        <View style={styles.content}>
+          <Text style={styles.title}>{listing.title}</Text>
+          <Text style={[
+            styles.price,
+            listingStatus === 'sold' && styles.soldPrice
+          ]}>
+            {listingStatus === 'sold' ? 'SOLD' : `$${listing.price.toFixed(2)}`}
+          </Text>
+          <View style={styles.detailRow}>
+            <MaterialIcons name="category" size={18} color="#007AFF" />
+            <Text style={styles.category}>{listing.category}</Text>
           </View>
-          <View style={styles.sellerInfo}>
-            <Text style={styles.sellerName}>{sellerInfo.name}</Text>
-            <Text style={styles.viewProfileText}>View Profile</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
+          
+          <Text style={styles.sectionTitle}>Description</Text>
+          <Text style={styles.description}>
+            {listing.description || 'No description provided'}
+          </Text>
 
-      <View style={styles.buttonContainer}>
-        {listingStatus === 'sold' ? (
+          <Text style={styles.sectionTitle}>Seller</Text>
           <TouchableOpacity 
-            style={styles.soldButton}
-            disabled
+            style={styles.sellerContainer}
+            onPress={() => setShowProfile(true)}
           >
-            <Text style={styles.buttonText}>SOLD</Text>
+            <View style={styles.sellerAvatar}>
+              {sellerInfo.avatar ? (
+                <Image 
+                  source={{ uri: `${BACKEND_BASE_URL}${sellerInfo.avatar}` }}
+                  style={{ width: '100%', height: '100%' }}
+                />
+              ) : (
+                <MaterialIcons name="person" size={24} color="#666" />
+              )}
+            </View>
+            <View style={styles.sellerInfo}>
+              <Text style={styles.sellerName}>{sellerInfo.name}</Text>
+              <Text style={styles.viewProfileText}>View Profile</Text>
+            </View>
           </TouchableOpacity>
-        ) : isOwner ? (
-          <TouchableOpacity 
-            style={styles.qrButton} 
-            onPress={handleGenerateQR}
-          >
-            <Text style={styles.buttonText}>Generate QR Code</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity 
-            style={styles.button} 
-            onPress={handleContactSeller}
-          >
-            <Text style={styles.buttonText}>Contact Seller</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </ScrollView>
+        </View>
+
+        <View style={styles.buttonContainer}>
+          {listingStatus === 'sold' ? (
+            <TouchableOpacity 
+              style={styles.soldButton}
+              disabled
+            >
+              <Text style={styles.buttonText}>SOLD</Text>
+            </TouchableOpacity>
+          ) : isOwner ? (
+            <TouchableOpacity 
+              style={styles.qrButton} 
+              onPress={handleGenerateQR}
+            >
+              <Text style={styles.buttonText}>Generate QR Code</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={handleContactSeller}
+            >
+              <Text style={styles.buttonText}>Contact Seller</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </ScrollView>
+      
+      {renderProfilePanel()}
+    </View>
   );
 }

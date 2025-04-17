@@ -26,77 +26,78 @@ type ProfileScreenProp = NativeStackNavigationProp<RootStackParamList, 'Profile'
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
     backgroundColor: '#fff',
   },
-  header: {
-    flexDirection: 'row',
+  scrollContent: {
+    padding: 20,
+  },
+  profileHeader: {
     alignItems: 'center',
     marginBottom: 30,
+    paddingTop: 20,
   },
   avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#f0f0f0',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#f5f5f5',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 20,
+    marginBottom: 15,
     overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#007AFF',
   },
   avatar: {
     width: '100%',
     height: '100%',
   },
-  userInfo: {
-    flex: 1,
-  },
   name: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 5,
+    textAlign: 'center',
   },
   email: {
     fontSize: 16,
     color: '#666',
-    marginBottom: 5,
+    marginBottom: 15,
+    textAlign: 'center',
   },
-  ratingContainer: {
+  statsContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
   },
-  ratingText: {
-    marginLeft: 5,
-    fontSize: 16,
+  statItem: {
+    alignItems: 'center',
+    marginHorizontal: 15,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#007AFF',
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#666',
   },
   section: {
-    marginBottom: 30,
+    marginBottom: 25,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
     color: '#333',
-  },
-  editButton: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    padding: 10,
-  },
-  logoutButton: {
-    backgroundColor: '#FF3B30',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
+    paddingLeft: 10,
   },
   button: {
     backgroundColor: '#007AFF',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
-    marginVertical: 10,
+    marginBottom: 10,
   },
   buttonText: {
     color: '#fff',
@@ -104,34 +105,47 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   secondaryButton: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#f5f5f5',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
-    marginVertical: 5,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
   secondaryButtonText: {
     color: '#007AFF',
     fontWeight: 'bold',
     fontSize: 16,
   },
+  logoutButton: {
+    backgroundColor: '#FF3B30',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  bioContainer: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 20,
+  },
   bioText: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 10,
-  },
-  detailsContainer: {
-    marginVertical: 10,
+    color: '#333',
+    lineHeight: 20,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 8,
+    paddingLeft: 10,
   },
   detailText: {
     fontSize: 14,
     color: '#666',
-    marginLeft: 5,
+    marginLeft: 8,
   },
 });
 
@@ -190,7 +204,7 @@ export default function ProfileScreen() {
       }
   
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -255,8 +269,9 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView  
+    <ScrollView
       style={styles.container}
+      contentContainerStyle={styles.scrollContent}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -264,7 +279,8 @@ export default function ProfileScreen() {
         />
       }
     >
-      <View style={styles.header}>
+      {/* Profile Header */}
+      <View style={styles.profileHeader}>
         <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
           {user?.avatar ? (
             <Image 
@@ -279,45 +295,54 @@ export default function ProfileScreen() {
           )}
         </TouchableOpacity>
         
-        <View style={styles.userInfo}>
-          <Text style={styles.name}>
-            {user?.name || user?.email?.split('@')[0] || 'User'}
-          </Text>
-          
-          <Text style={styles.email}>{user?.email}</Text>
-          
-          {/* Display bio if it exists */}
-          {user?.bio && user.bio.trim() !== '' && (
-            <Text style={styles.bioText}>{user.bio}</Text>
-          )}
-          
-          <View style={styles.detailsContainer}>
-            {/* Display location if it exists */}
-            {user?.location && user.location.trim() !== '' && (
-              <View style={styles.detailRow}>
-                <MaterialIcons name="location-on" size={16} color="#666" />
-                <Text style={styles.detailText}>{user.location}</Text>
-              </View>
-            )}
-            
-            {/* Display phone if it exists */}
-            {user?.phone && user.phone.trim() !== '' && (
-              <View style={styles.detailRow}>
-                <MaterialIcons name="phone" size={16} color="#666" />
-                <Text style={styles.detailText}>{user.phone}</Text>
-              </View>
-            )}
+        <Text style={styles.name}>
+          {user?.name || user?.email?.split('@')[0] || 'User'}
+        </Text>
+        
+        <Text style={styles.email}>{user?.email}</Text>
+        
+        {/* Stats Row */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{stats.rating.toFixed(1)}</Text>
+            <Text style={styles.statLabel}>Rating</Text>
           </View>
-    
-          <View style={styles.ratingContainer}>
-            <MaterialIcons name="star" size={20} color="#FFD700" />
-            <Text style={styles.ratingText}>
-              {stats.rating.toFixed(1)} ({stats.listingsCount} listings)
-            </Text>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{stats.listingsCount}</Text>
+            <Text style={styles.statLabel}>Listings</Text>
           </View>
         </View>
       </View>
 
+      {/* Bio Section */}
+      {user?.bio && user.bio.trim() !== '' && (
+        <View style={styles.bioContainer}>
+          <Text style={styles.bioText}>{user.bio}</Text>
+        </View>
+      )}
+
+      {/* Contact Info */}
+      <View style={styles.section}>
+        {(user?.location || user?.phone) && (
+          <Text style={styles.sectionTitle}>Contact Information</Text>
+        )}
+        
+        {user?.location && user.location.trim() !== '' && (
+          <View style={styles.detailRow}>
+            <MaterialIcons name="location-on" size={18} color="#007AFF" />
+            <Text style={styles.detailText}>{user.location}</Text>
+          </View>
+        )}
+        
+        {user?.phone && user.phone.trim() !== '' && (
+          <View style={styles.detailRow}>
+            <MaterialIcons name="phone" size={18} color="#007AFF" />
+            <Text style={styles.detailText}>{user.phone}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* My Listings Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>My Listings</Text>
         <TouchableOpacity 
@@ -335,8 +360,9 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Account Settings */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account</Text>
+        <Text style={styles.sectionTitle}>Account Settings</Text>
         
         <TouchableOpacity 
           style={styles.button}
@@ -358,14 +384,15 @@ export default function ProfileScreen() {
         >
           <Text style={styles.secondaryButtonText}>Change Password</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.logoutButton}
-          onPress={handleLogout}
-        >
-          <Text style={styles.buttonText}>Log Out</Text>
-        </TouchableOpacity>
       </View>
+
+      {/* Logout Button */}
+      <TouchableOpacity 
+        style={styles.logoutButton}
+        onPress={handleLogout}
+      >
+        <Text style={styles.buttonText}>Log Out</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
