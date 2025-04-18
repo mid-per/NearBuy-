@@ -46,7 +46,7 @@ def register():
             
         new_user = User(
             email=data['email'].strip().lower(),
-            password=generate_password_hash(data['password']),
+            password=data['password'],  # Remove generate_password_hash here
             is_admin=data.get('is_admin', False)
         )
         

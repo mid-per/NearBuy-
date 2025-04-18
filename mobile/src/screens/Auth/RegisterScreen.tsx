@@ -164,6 +164,9 @@ export default function RegisterScreen() {
       }
     } catch (error) {
       let errorMessage = 'Registration failed. Please try again.';
+
+      setError('Registration successful! Please login manually.');
+      console.error('Auto-login error:', error);
       
       if (isAxiosError(error)) {
         errorMessage = error.response?.data?.error || error.message;

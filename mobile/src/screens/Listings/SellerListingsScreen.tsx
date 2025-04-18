@@ -130,6 +130,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
   },
+  sectionHeader: {
+    width: '100%',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    backgroundColor: '#f8f8f8',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    marginTop: 10,
+  },
+  sectionHeaderText: {
+    fontWeight: '600',
+    color: '#666',
+    fontSize: 14,
+  },
 });
 
 export default function SellerListingsScreen() {
@@ -157,13 +171,23 @@ export default function SellerListingsScreen() {
       const params: any = { 
         seller_id: sellerId,
       };
-
+  
       if (!user || user.id !== sellerId) {
         params.status = 'active';
       }
-
+  
       const response = await client.get('/listings/search', { params });
-      setListings(response.data.results);
+      
+      // Sort listings - active first, then sold (only for own listings)
+      const sortedListings = user?.id === sellerId 
+        ? [...response.data.results].sort((a, b) => {
+            if (a.status === 'sold' && b.status !== 'sold') return 1;
+            if (a.status !== 'sold' && b.status === 'sold') return -1;
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          })
+        : response.data.results;
+      
+      setListings(sortedListings);
       setError('');
     } catch (err) {
       console.error('Failed to fetch listings:', err);

@@ -14,6 +14,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import client from '@/api/client';
 import { AxiosError } from 'axios';
 import { MaterialIcons } from '@expo/vector-icons';
+import { BACKEND_BASE_URL } from '@/config';
 
 type QRScannerScreenProp = NativeStackNavigationProp<RootStackParamList, 'QRScanner'>;
 
@@ -113,12 +114,19 @@ export default function QRScannerScreen() {
     try {
       const response = await client.post('/transactions/confirm', { qr_code: data });
       
+      // Format the avatar URL before navigation
+      const formattedAvatar = response.data.seller_avatar 
+        ? (response.data.seller_avatar.startsWith('http') 
+            ? response.data.seller_avatar 
+            : `${BACKEND_BASE_URL}${response.data.seller_avatar}`)
+        : undefined;
+  
       navigation.navigate('Rating', {
         transactionId: response.data.transaction_id,
         seller: {
           id: response.data.seller_id,
           name: response.data.seller_name || `Seller ${response.data.seller_id}`,
-          avatar: response.data.seller_avatar
+          avatar: formattedAvatar
         }
       });
     } catch (error: unknown) {

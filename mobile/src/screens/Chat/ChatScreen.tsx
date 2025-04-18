@@ -291,7 +291,6 @@ export default function ChatScreen() {
   };
 
   const renderItem = ({ item, index }: { item: any, index: number }) => {
-    console.log('Partner avatar URI:', partner.avatar);
     const isCurrentUser = item.sender_id === user?.id;
     const isLastMessage = index === messages.length - 1;
     const showReadReceipt = isCurrentUser && isLastMessage;

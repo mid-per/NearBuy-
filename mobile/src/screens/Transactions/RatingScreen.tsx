@@ -15,6 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import client from '@/api/client';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useUser } from '@/contexts/UserContext';
+import { BACKEND_BASE_URL } from '@/config';
 
 type RatingScreenProp = NativeStackNavigationProp<RootStackParamList, 'Rating'>;
 
@@ -193,7 +194,12 @@ export default function RatingScreen() {
         <View style={styles.avatarContainer}>
           {seller.avatar ? (
             <Image
-              source={{ uri: seller.avatar }}
+              source={{ 
+                uri: seller.avatar.startsWith('http') 
+                  ? seller.avatar 
+                  : `${BACKEND_BASE_URL}${seller.avatar}`,
+                cache: 'force-cache'
+              }}
               style={styles.avatar}
             />
           ) : (
@@ -203,7 +209,7 @@ export default function RatingScreen() {
         <Text style={styles.sellerName}>Rate your experience</Text>
         <Text style={styles.ratingText}>How was your transaction with {seller.name}?</Text>
       </View>
-
+  
       <View style={styles.ratingContainer}>
         <View style={styles.starsContainer}>
           {[1, 2, 3, 4, 5].map(star => (
@@ -221,7 +227,7 @@ export default function RatingScreen() {
           ))}
         </View>
       </View>
-
+  
       {rating > 0 && (
         <View style={styles.tagSection}>
           <Text style={styles.tagSectionTitle}>
@@ -248,7 +254,7 @@ export default function RatingScreen() {
           </View>
         </View>
       )}
-
+  
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={[
