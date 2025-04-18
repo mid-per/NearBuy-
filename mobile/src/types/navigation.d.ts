@@ -19,6 +19,9 @@ export type RootStackParamList = {
     sellerId: number;
     buyerId: number; 
     listingTitle: string;
+    status?: 'active' | 'sold';
+    otherPartyName?: string;
+    otherPartyAvatar?: string;
   };
   Rating: {
     transactionId: number;

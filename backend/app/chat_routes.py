@@ -1,5 +1,7 @@
+from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+import socketio
 from sqlalchemy.orm import joinedload
 from app import db
 from app.models.user_model import User
@@ -8,6 +10,7 @@ from app.models.chat_model import ChatRoom, ChatMessage
 import uuid
 from app.models.listing_model import Listing, Transaction
 from functools import wraps
+from app.socket_events import socketio
 
 bp = Blueprint('chat', __name__, url_prefix='/api/chats')
 
@@ -94,16 +97,31 @@ def initiate_chat():
 def get_user_chats():
     current_user_id = int(get_jwt_identity())
     
+    # Define buyer alias
+    from sqlalchemy.orm import aliased
+    UserBuyer = aliased(User)
+    
     # Get all chat rooms where user is either buyer or seller
     chats = db.session.query(
         ChatRoom,
-        Listing.title.label('listing_title')
+        Listing.title.label('listing_title'),
+        Listing.status.label('listing_status'),
+        User.name.label('seller_name'),
+        User.avatar.label('seller_avatar'),
+        UserBuyer.name.label('buyer_name'),
+        UserBuyer.avatar.label('buyer_avatar')
     ).join(
         Transaction,
         Transaction.id == ChatRoom.transaction_id
     ).join(
         Listing,
         Listing.id == ChatRoom.listing_id
+    ).join(
+        User,  # Seller
+        User.id == Transaction.seller_id
+    ).join(
+        UserBuyer,  # Buyer
+        UserBuyer.id == Transaction.buyer_id
     ).filter(
         (Transaction.buyer_id == current_user_id) |
         (Transaction.seller_id == current_user_id)
@@ -111,7 +129,7 @@ def get_user_chats():
     
     # Get last message for each chat
     result = []
-    for chat, listing_title in chats:
+    for chat, listing_title, listing_status, seller_name, seller_avatar, buyer_name, buyer_avatar in chats:
         last_msg = ChatMessage.query.filter_by(room_id=chat.id)\
             .order_by(ChatMessage.sent_at.desc()).first()
             
@@ -119,9 +137,22 @@ def get_user_chats():
             'id': chat.id,
             'listing_id': chat.listing_id,
             'listing_title': listing_title,
+            'status': listing_status,
             'seller_id': chat.transaction.seller_id,
+            'buyer_id': chat.transaction.buyer_id,
+            'seller_avatar': seller_avatar,
+            'buyer_avatar': buyer_avatar,
+            'seller_name': seller_name,
+            'buyer_name': buyer_name,
             'last_message': last_msg.content if last_msg else None,
-            'last_message_time': last_msg.sent_at.isoformat() if last_msg else None
+            'last_message_time': last_msg.sent_at.isoformat() if last_msg else None,
+            'completed_at': chat.transaction.completed_at.isoformat() if chat.transaction.completed_at else None,
+            'unread_count': ChatMessage.query.filter_by(
+                room_id=chat.id,
+                read_at=None
+            ).filter(
+                ChatMessage.sender_id != current_user_id
+            ).count() if last_msg else 0
         })
     
     return jsonify({'chats': result}), 200
@@ -220,3 +251,38 @@ def send_message(room_id):
         "message": "Message sent",
         "message_id": new_message.id
     }), 201
+
+@bp.route('/<int:room_id>/messages/read', methods=['POST'])
+@jwt_required()
+@verify_chat_participant
+def mark_messages_as_read(room_id):
+    current_user_id = int(get_jwt_identity())
+    
+    try:
+        room = ChatRoom.query.get(room_id)
+        if not room:
+            return jsonify({"error": "Room not found"}), 404
+            
+        other_user_id = room.transaction.seller_id if current_user_id == room.transaction.buyer_id else room.transaction.buyer_id
+        
+        # Mark messages as read
+        updated = db.session.query(ChatMessage).filter(
+            ChatMessage.room_id == room_id,
+            ChatMessage.sender_id == other_user_id,
+            ChatMessage.read_at == None
+        ).update({'read_at': datetime.now(timezone.utc)})
+        
+        db.session.commit()
+        
+        if updated > 0:
+            socketio.emit('messages_read', {
+                'room_id': room_id,
+                'reader_id': current_user_id,
+                'count': updated
+            }, room=f'room_{room_id}')
+        
+        return jsonify({'success': True, 'marked_read': updated}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500

@@ -1,4 +1,4 @@
-import React, {  useCallback , useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -7,7 +7,6 @@ import {
   FlatList, 
   TouchableOpacity, 
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Image
@@ -20,6 +19,7 @@ import client from '@/api/client';
 import { useUser } from '@/contexts/UserContext';
 import socket from '@/utils/socket';
 import { RootStackParamList } from '@/types/navigation';
+import { BACKEND_BASE_URL } from '@/config';
 
 type ChatScreenRouteProp = RouteProp<RootStackParamList, 'Chat'>;
 
@@ -91,23 +91,54 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginRight: 8,
   },
+  readReceipt: {
+    fontSize: 10,
+    color: '#999',
+    marginTop: 2,
+    marginRight: 8,
+    textAlign: 'right',
+  },
+  messageGroup: {
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  currentUserGroup: {
+    alignItems: 'flex-end',
+  },
+  avatarContainer: {
+    width: 32,
+    height: 32,
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarPlaceholder: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
 
 export default function ChatScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<ChatScreenRouteProp>();
-  const { roomId, sellerId, buyerId, listingId, listingTitle } = route.params;
+  const { roomId, sellerId, buyerId, listingId, listingTitle, otherPartyName, otherPartyAvatar } = route.params;
   const { user } = useUser();
   const [messages, setMessages] = useState<any[]>([]);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const flatListRef = useRef<FlatList>(null);
+
+  // Initialize partner info from route params if available
   const [partner, setPartner] = useState({
-    name: '',
-    avatar: '',
+    name: otherPartyName || '',
+    avatar: otherPartyAvatar || '',
   });
 
-  // Fixed: Added proper error handling for partner info
   const fetchPartnerInfo = useCallback(async () => {
     try {
       const partnerId = user?.id === sellerId ? buyerId : sellerId;
@@ -119,13 +150,12 @@ export default function ChatScreen() {
     } catch (error) {
       console.log('Using default partner info');
       setPartner({
-        name: `User ${user?.id === sellerId ? buyerId : sellerId}`,
-        avatar: '',
+        name: otherPartyName || `User ${user?.id === sellerId ? buyerId : sellerId}`,
+        avatar: otherPartyAvatar || '',
       });
     }
-  }, [user?.id, sellerId, buyerId]);
+  }, [user?.id, sellerId, buyerId, otherPartyName, otherPartyAvatar]);
 
-  // Fixed: Combined data loading with proper error handling
   const loadInitialData = useCallback(async () => {
     try {
       const [messagesResponse] = await Promise.all([
@@ -135,8 +165,8 @@ export default function ChatScreen() {
       
       setMessages(messagesResponse.data.messages.map((msg: any) => ({
         ...msg,
-        // Fixed: Ensure unique key by combining timestamp and id
-        uniqueKey: `${msg.id}-${new Date(msg.sent_at).getTime()}`
+        uniqueKey: `${msg.id}-${new Date(msg.sent_at).getTime()}`,
+        is_read: msg.read_at !== null
       })));
     } catch (error) {
       console.error('Failed to load chat data:', error);
@@ -157,8 +187,8 @@ export default function ChatScreen() {
     const handleNewMessage = (msg: any) => {
       setMessages(prev => [...prev, {
         ...msg,
-        // Fixed: Ensure unique key for new messages
-        uniqueKey: `${msg.id}-${new Date(msg.timestamp).getTime()}`
+        uniqueKey: `${msg.id}-${new Date(msg.timestamp).getTime()}`,
+        is_read: msg.sender_id === user.id // Messages from current user are always "read"
       }]);
     };
 
@@ -170,14 +200,49 @@ export default function ChatScreen() {
     };
   }, [roomId, user?.id, loadInitialData]);
 
-  // Update header title
   useEffect(() => {
     navigation.setOptions({
       title: partner.name || listingTitle || 'Chat',
     });
   }, [partner.name, listingTitle]);
 
-   // Fixed: Optimistic updates with proper keys
+  const markAsRead = useCallback(async () => {
+    if (!user || !roomId) return;
+    
+    try {
+      const response = await client.post(`/chats/${roomId}/messages/read`);
+      if (response.data.marked_read > 0) {
+        setMessages(prev => prev.map(msg => ({
+          ...msg,
+          is_read: msg.sender_id !== user.id ? true : msg.is_read
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to mark messages as read:', error);
+    }
+  }, [roomId, user?.id]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', markAsRead);
+    return unsubscribe;
+  }, [navigation, markAsRead]);
+
+  useEffect(() => {
+    const handleMessagesRead = (data: { room_id: number }) => {
+      if (data.room_id === roomId) {
+        setMessages(prev => prev.map(msg => ({
+          ...msg,
+          is_read: msg.sender_id === user?.id ? true : msg.is_read
+        })));
+      }
+    };
+
+    socket.on('messages_read', handleMessagesRead);
+    return () => {
+      socket.off('messages_read', handleMessagesRead);
+    };
+  }, [roomId, user?.id]);
+
   const handleSendMessage = async () => {
     if (!message.trim() || !user || !roomId) return;
 
@@ -190,7 +255,8 @@ export default function ChatScreen() {
         content: message,
         sender_id: user.id,
         sent_at: new Date().toISOString(),
-        uniqueKey: tempKey
+        uniqueKey: tempKey,
+        is_read: false
       };
 
       setMessages(prev => [...prev, newMessage]);
@@ -213,18 +279,78 @@ export default function ChatScreen() {
           uniqueKey: `${response.data.id}-${new Date(msg.sent_at).getTime()}`
         } : msg
       ));
+
+      // Scroll to bottom after sending message
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     } catch (err) {
       console.error('Failed to send message:', err);
       setMessages(prev => prev.filter(msg => msg.uniqueKey !== tempKey));
     }
   };
 
-   // Update header title
-  useEffect(() => {
-    navigation.setOptions({
-      title: partner.name || listingTitle || 'Chat',
-    });
-  }, [partner.name, listingTitle]);
+  const renderItem = ({ item, index }: { item: any, index: number }) => {
+    console.log('Partner avatar URI:', partner.avatar);
+    const isCurrentUser = item.sender_id === user?.id;
+    const isLastMessage = index === messages.length - 1;
+    const showReadReceipt = isCurrentUser && isLastMessage;
+
+    return (
+      <View style={[
+        styles.messageGroup,
+        isCurrentUser && styles.currentUserGroup
+      ]}>
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'flex-end',
+          maxWidth: '80%',
+        }}>
+          {!isCurrentUser && (
+            <View style={styles.avatarContainer}>
+              {partner.avatar ? (
+                <Image 
+                  source={{ 
+                    uri: partner.avatar.includes('http') 
+                      ? partner.avatar 
+                      : `${BACKEND_BASE_URL}${partner.avatar}`,
+                    cache: 'force-cache'
+                  }}
+                  style={styles.avatar}
+                  onError={(e) => console.log('Failed to load avatar:', e.nativeEvent.error)}
+                />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <MaterialIcons name="person" size={20} color="#666" />
+                </View>
+              )}
+            </View>
+          )}
+          <View style={[
+            styles.messageBubble,
+            isCurrentUser 
+              ? styles.currentUserMessage 
+              : styles.otherUserMessage
+          ]}>
+            <Text style={[
+              styles.messageText,
+              isCurrentUser 
+                ? styles.currentUserText 
+                : styles.otherUserText
+            ]}>
+              {item.content}
+            </Text>
+          </View>
+        </View>
+        
+        {showReadReceipt && (
+          <Text style={styles.readReceipt}>
+            {item.is_read ? 'Read' : 'Delivered'}
+          </Text>
+        )}
+      </View>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -249,38 +375,12 @@ export default function ChatScreen() {
       keyboardVerticalOffset={90}
     >
       <FlatList
+        ref={flatListRef}
         data={messages}
-        keyExtractor={(item) => item.uniqueKey}  // Fixed: Using uniqueKey
-        renderItem={({ item }) => (
-          <View style={{
-            flexDirection: 'row',
-            alignItems: 'flex-end',
-            marginVertical: 4,
-            alignSelf: item.sender_id === user?.id ? 'flex-end' : 'flex-start',
-          }}>
-            {item.sender_id !== user?.id && partner.avatar && (
-              <Image 
-                source={{ uri: partner.avatar }} 
-                style={styles.avatar} 
-              />
-            )}
-            <View style={[
-              styles.messageBubble,
-              item.sender_id === user?.id 
-                ? styles.currentUserMessage 
-                : styles.otherUserMessage
-            ]}>
-              <Text style={[
-                styles.messageText,
-                item.sender_id === user?.id 
-                  ? styles.currentUserText 
-                  : styles.otherUserText
-              ]}>
-                {item.content}
-              </Text>
-            </View>
-          </View>
-        )}
+        keyExtractor={(item) => item.uniqueKey}
+        renderItem={renderItem}
+        contentContainerStyle={styles.messageList}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         ListEmptyComponent={
           <View style={styles.emptyChatContainer}>
             <Text style={styles.emptyChatText}>No messages yet. Start the conversation!</Text>
