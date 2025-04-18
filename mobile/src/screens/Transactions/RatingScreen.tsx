@@ -1,6 +1,14 @@
-// src/screens/Transactions/RatingScreen.tsx
 import React, { useState } from 'react';
-import { Alert, View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { 
+  Alert, 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Image,
+  ActivityIndicator,
+  ScrollView
+} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '@/types/navigation';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,62 +21,120 @@ type RatingScreenProp = NativeStackNavigationProp<RootStackParamList, 'Rating'>;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
     backgroundColor: '#fff',
   },
-  sellerInfo: {
+  scrollContent: {
+    padding: 25,
+    paddingTop: 40,
+  },
+  header: {
     alignItems: 'center',
     marginBottom: 30,
   },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 10,
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
   },
-  name: {
+  avatarContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#007AFF',
+  },
+  avatar: {
+    width: '100%',
+    height: '100%',
+  },
+  sellerName: {
     fontSize: 20,
     fontWeight: 'bold',
+    color: '#333',
   },
   ratingContainer: {
+    marginBottom: 30,
+    alignItems: 'center',
+  },
+  starsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 30,
+    marginBottom: 15,
   },
   star: {
-    marginHorizontal: 5,
+    marginHorizontal: 8,
+  },
+  ratingText: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 20,
+  },
+  tagSection: {
+    marginBottom: 30,
+  },
+  tagSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+    textAlign: 'center',
   },
   tagContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    marginBottom: 30,
   },
   tag: {
-    padding: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     margin: 5,
     borderRadius: 20,
-    backgroundColor: 'rgba(0,122,255,0.1)',
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
   selectedTag: {
     backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
   },
   tagText: {
-    color: '#007AFF',
+    fontSize: 14,
+    color: '#666',
   },
   selectedTagText: {
-    color: 'white',
+    color: '#fff',
+  },
+  buttonContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   submitButton: {
     backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 10,
     alignItems: 'center',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
   },
   submitText: {
-    color: 'white',
+    color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  loadingIndicator: {
+    marginTop: 10,
   },
 });
 
@@ -119,62 +185,91 @@ export default function RatingScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.sellerInfo}>
-        <Image
-          source={{ uri: seller.avatar || 'https://via.placeholder.com/100' }}
-          style={styles.avatar}
-        />
-        <Text style={styles.name}>Rate {seller.name}</Text>
+    <ScrollView 
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+    >
+      <View style={styles.header}>
+        <View style={styles.avatarContainer}>
+          {seller.avatar ? (
+            <Image
+              source={{ uri: seller.avatar }}
+              style={styles.avatar}
+            />
+          ) : (
+            <MaterialIcons name="person" size={50} color="#666" />
+          )}
+        </View>
+        <Text style={styles.sellerName}>Rate your experience</Text>
+        <Text style={styles.ratingText}>How was your transaction with {seller.name}?</Text>
       </View>
 
       <View style={styles.ratingContainer}>
-        {[1, 2, 3, 4, 5].map(star => (
-          <TouchableOpacity 
-            key={star} 
-            onPress={() => setRating(star)}
-            style={styles.star}
-          >
-            <MaterialIcons
-              name={star <= rating ? 'star' : 'star-border'}
-              size={40}
-              color={star <= rating ? '#FFD700' : '#ccc'}
-            />
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {rating > 0 && (
-        <View style={styles.tagContainer}>
-          {TAGS[rating as keyof typeof TAGS]?.map(tag => (
-            <TouchableOpacity
-              key={tag}
-              style={[
-                styles.tag,
-                selectedTags.includes(tag) && styles.selectedTag
-              ]}
-              onPress={() => toggleTag(tag)}
+        <View style={styles.starsContainer}>
+          {[1, 2, 3, 4, 5].map(star => (
+            <TouchableOpacity 
+              key={star} 
+              onPress={() => setRating(star)}
+              style={styles.star}
             >
-              <Text style={[
-                styles.tagText,
-                selectedTags.includes(tag) && styles.selectedTagText
-              ]}>
-                {tag}
-              </Text>
+              <MaterialIcons
+                name={star <= rating ? 'star' : 'star-outline'}
+                size={42}
+                color={star <= rating ? '#FFD700' : '#ccc'}
+              />
             </TouchableOpacity>
           ))}
         </View>
+      </View>
+
+      {rating > 0 && (
+        <View style={styles.tagSection}>
+          <Text style={styles.tagSectionTitle}>
+            {rating <= 2 ? 'What went wrong?' : 'What did you like?'}
+          </Text>
+          <View style={styles.tagContainer}>
+            {TAGS[rating as keyof typeof TAGS]?.map(tag => (
+              <TouchableOpacity
+                key={tag}
+                style={[
+                  styles.tag,
+                  selectedTags.includes(tag) && styles.selectedTag
+                ]}
+                onPress={() => toggleTag(tag)}
+              >
+                <Text style={[
+                  styles.tagText,
+                  selectedTags.includes(tag) && styles.selectedTagText
+                ]}>
+                  {tag}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
       )}
 
-      <TouchableOpacity
-        style={styles.submitButton}
-        onPress={handleSubmit}
-        disabled={!rating || isSubmitting}
-      >
-        <Text style={styles.submitText}>
-          {isSubmitting ? 'Submitting...' : 'Submit Rating'}
-        </Text>
-      </TouchableOpacity>
-    </View>
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            (!rating || isSubmitting) && styles.submitButtonDisabled
+          ]}
+          onPress={handleSubmit}
+          disabled={!rating || isSubmitting}
+        >
+          <Text style={styles.submitText}>
+            {isSubmitting ? 'Submitting...' : 'Submit Rating'}
+          </Text>
+          {isSubmitting && (
+            <ActivityIndicator 
+              size="small" 
+              color="#fff" 
+              style={styles.loadingIndicator}
+            />
+          )}
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }

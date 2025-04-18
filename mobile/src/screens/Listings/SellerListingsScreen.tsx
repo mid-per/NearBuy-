@@ -1,4 +1,3 @@
-// src/screens/Listings/SellerListingsScreen.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -9,7 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  SafeAreaView,
+  ScrollView,
   Dimensions,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -37,13 +36,27 @@ interface SellerListingsScreenProps {
 }
 
 const { width } = Dimensions.get('window');
-const ITEM_WIDTH = (width - 40) / 2;
+const ITEM_WIDTH = (width - 60) / 2; // Adjusted spacing
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
+  },
+  contentContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  header: {
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  headerText: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
   },
   gridContainer: {
     paddingHorizontal: 5,
@@ -51,67 +64,71 @@ const styles = StyleSheet.create({
   itemContainer: {
     width: ITEM_WIDTH,
     backgroundColor: '#fff',
-    borderRadius: 8,
+    borderRadius: 10,
     margin: 5,
     overflow: 'hidden',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
   itemImage: {
     width: '100%',
     height: ITEM_WIDTH,
     resizeMode: 'cover',
+    backgroundColor: '#f5f5f5',
   },
   itemDetails: {
-    padding: 10,
+    padding: 12,
   },
   itemTitle: {
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 5,
+    color: '#333',
   },
   itemPrice: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#007AFF',
   },
+  soldPrice: {
+    color: '#FF3B30',
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 40,
   },
   emptyText: {
     fontSize: 16,
-    color: '#888',
+    color: '#666',
     textAlign: 'center',
+    marginBottom: 20,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 10,
-  },
-  headerText: {
-    fontSize: 18,
+  retryText: {
+    color: '#007AFF',
     fontWeight: 'bold',
   },
   soldIndicator: {
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: 'rgba(255, 59, 48, 0.8)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    backgroundColor: 'rgba(255, 59, 48, 0.9)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 5,
+    zIndex: 1,
   },
   soldIndicatorText: {
     color: 'white',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
   },
 });
 
@@ -176,7 +193,10 @@ export default function SellerListingsScreen() {
 
   const renderItem = ({ item }: { item: Listing }) => (
     <TouchableOpacity
-      style={styles.itemContainer}
+      style={[
+        styles.itemContainer,
+        item.status === 'sold' && { opacity: 0.7 }
+      ]}
       onPress={() => handleListingPress(item)}
     >
       {item.status === 'sold' && (
@@ -188,10 +208,7 @@ export default function SellerListingsScreen() {
         source={{
           uri: item.image_url || 'https://via.placeholder.com/300'
         }}
-        style={[
-          styles.itemImage,
-          item.status === 'sold' && { opacity: 0.7 }
-        ]}
+        style={styles.itemImage}
       />
       <View style={styles.itemDetails}>
         <Text 
@@ -205,7 +222,7 @@ export default function SellerListingsScreen() {
         </Text>
         <Text style={[
           styles.itemPrice,
-          item.status === 'sold' && { color: '#FF3B30' }
+          item.status === 'sold' && styles.soldPrice
         ]}>
           {item.status === 'sold' ? 'SOLD' : `$${item.price.toFixed(2)}`}
         </Text>
@@ -215,8 +232,8 @@ export default function SellerListingsScreen() {
 
   if (loading && !refreshing) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
   }
@@ -226,35 +243,44 @@ export default function SellerListingsScreen() {
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyText}>{error}</Text>
         <TouchableOpacity onPress={fetchListings}>
-          <Text style={[styles.emptyText, { color: '#007AFF' }]}>
-            Tap to retry
-          </Text>
+          <Text style={styles.retryText}>Tap to retry</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {listings.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>
-            {sellerName ? `${sellerName} hasn't listed any items yet` : 'No listings found'}
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={listings}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id.toString()}
-          numColumns={2}
-          columnWrapperStyle={styles.gridContainer}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          contentContainerStyle={{ paddingTop: 10 }}
-        />
-      )}
-    </SafeAreaView>
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={['#007AFF']}
+          />
+        }
+      >
+        {listings.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              {sellerName 
+                ? `${sellerName} hasn't listed any items yet` 
+                : 'No listings found'}
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={listings}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id.toString()}
+            numColumns={2}
+            columnWrapperStyle={styles.gridContainer}
+            scrollEnabled={false}
+            contentContainerStyle={{ paddingTop: 10 }}
+          />
+        )}
+      </ScrollView>
+    </View>
   );
 }
