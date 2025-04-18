@@ -22,7 +22,9 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
-# Decorator for admin-only endpoints
+# ======================
+# 1. UTILITY DECORATORS
+# ======================
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -32,7 +34,9 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
-# Register (Customers or Admins)
+# ======================
+# 2. AUTHENTICATION ROUTES
+# ======================
 @bp.route('/register', methods=['POST'])
 @limiter.limit("10 per minute")
 def register():
@@ -46,7 +50,7 @@ def register():
             
         new_user = User(
             email=data['email'].strip().lower(),
-            password=data['password'],  # Remove generate_password_hash here
+            password=data['password'],
             is_admin=data.get('is_admin', False)
         )
         
@@ -62,7 +66,6 @@ def register():
         db.session.rollback()
         return jsonify({"error": "Registration failed"}), 500
 
-# Login
 @bp.route('/login', methods=['POST'])
 @limiter.limit("100 per minute")
 def login():
@@ -74,8 +77,6 @@ def login():
     if not user or not check_password_hash(user.password, data['password']):
         return jsonify({"error": "Invalid credentials"}), 401
         
-    print(f"Generating token for user: {user.id} {user.email}")  # Debug log
-    
     return jsonify({
         "access_token": create_access_token(identity=str(user.id)),
         "refresh_token": create_refresh_token(identity=str(user.id)),
@@ -88,7 +89,6 @@ def login():
 @jwt_required()
 def get_current_user():
     current_user_id = int(get_jwt_identity())
-    
     current_user = User.query.get(current_user_id)
     if not current_user:
         return jsonify({"error": "User not found"}), 404
@@ -120,17 +120,14 @@ def verify_token():
 @bp.route('/auth/logout', methods=['POST'])
 @jwt_required()
 def logout():
-    # In a real app, you might blacklist the token here
     return jsonify({"message": "Logged out successfully"}), 200
 
-# Add these new routes
 @bp.route('/auth/change-email', methods=['POST'])
 @jwt_required()
 def change_email():
     current_user = User.query.get(int(get_jwt_identity()))
     data = request.get_json()
     
-    # Add validation
     if not check_password_hash(current_user.password, data['currentPassword']):
         return jsonify({"error": "Invalid password"}), 401
         
@@ -166,6 +163,25 @@ def change_password():
     
     return jsonify({"message": "Password updated successfully"}), 200
 
+@bp.route('/refresh', methods=['POST'])
+@jwt_required(refresh=True)
+def refresh():
+    try:
+        current_user = get_jwt_identity()
+        user = User.query.get(current_user)
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+            
+        return jsonify({
+            "access_token": create_access_token(identity=str(user.id))
+        })
+        
+    except Exception as e:
+        return jsonify({"error": "Token refresh failed"}), 500
+
+# ======================
+# 3. USER PROFILE ROUTES
+# ======================
 @bp.route('/users/<int:user_id>', methods=['GET'])
 @jwt_required()
 def get_user(user_id):
@@ -173,7 +189,6 @@ def get_user(user_id):
     if not user:
         return jsonify({"error": "User not found"}), 404
     
-    # Calculate average rating
     ratings = [t.rating for t in user.sales if t.rating is not None]
     avg_rating = round(sum(ratings) / len(ratings), 1) if ratings else 0
 
@@ -195,13 +210,11 @@ def get_user(user_id):
         "is_admin": user.is_admin
     }), 200
 
-# User Profile Endpoints
-@bp.route('/users/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
+@bp.route('/users/<int:user_id>', methods=['PUT', 'DELETE'])
 @jwt_required()
 def user_profile(user_id):
     current_user_id = int(get_jwt_identity())
     
-    # Authorization check
     if current_user_id != user_id and not User.query.get(current_user_id).is_admin:
         return jsonify({"error": "Unauthorized"}), 403
 
@@ -224,9 +237,7 @@ def user_profile(user_id):
     elif request.method == 'PUT':
         try:
             data = {}
-            # Handle both JSON and FormData
             if request.content_type and 'multipart/form-data' in request.content_type:
-                # Handle FormData (for avatar uploads)
                 data = request.form.to_dict()
                 avatar_file = request.files.get('avatar')
                 
@@ -236,16 +247,13 @@ def user_profile(user_id):
                     avatar_file.save(filepath)
                     user.avatar = f"/uploads/{filename}"
             else:
-                # Handle JSON data
                 data = request.get_json()
 
-            # Update fields
             if 'email' in data:
                 if User.query.filter(User.email == data['email'], User.id != user.id).first():
                     return jsonify({"error": "Email already in use"}), 400
                 user.email = data['email']
 
-            # Update fields
             if 'name' in data:
                 user.name = data['name']
             if 'bio' in data:
@@ -278,7 +286,33 @@ def user_profile(user_id):
         db.session.commit()
         return jsonify({"message": "User deleted"})
 
-# Create Listing (Seller)
+@bp.route('/users/<int:seller_id>/rating', methods=['GET'])
+def get_seller_rating(seller_id):
+    try:
+        seller = User.query.get(seller_id)
+        if not seller:
+            return jsonify({"error": "Seller not found"}), 404
+        
+        ratings = [
+            t.rating for t in seller.sales 
+            if t.completed and t.rating is not None
+        ]
+        
+        avg_rating = round(sum(ratings) / len(ratings), 2) if ratings else None
+        
+        return jsonify({
+            "seller_id": seller.id,
+            "average_rating": avg_rating,
+            "total_ratings": len(ratings)
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Failed to fetch ratings: {str(e)}", exc_info=True)
+        return jsonify({"error": "Failed to calculate rating"}), 500
+
+# ======================
+# 4. LISTING ROUTES
+# ======================
 @bp.route('/listings', methods=['POST'])
 @jwt_required()
 def create_listing():
@@ -288,18 +322,15 @@ def create_listing():
             return jsonify({"error": "User not found"}), 404
             
         data = request.get_json()
-        print("Received data:", data)  # Debug log
         
         if not data:
             return jsonify({"error": "No data provided"}), 400
             
-        # Required fields validation
         required_fields = ['title', 'price', 'category', 'image_url']
         for field in required_fields:
             if field not in data:
                 return jsonify({"error": f"Missing required field: {field}"}), 400
         
-        # Price validation
         try:
             price = float(data['price'])
             if price <= 0:
@@ -307,13 +338,12 @@ def create_listing():
         except ValueError:
             return jsonify({"error": "Invalid price"}), 400
             
-        # Create new listing
         new_listing = Listing(
             title=data['title'].strip(),
             description=data.get('description', '').strip(),
             price=price,
             category=data['category'].strip(),
-            image_url=data['image_url'],  # Make sure this matches your frontend
+            image_url=data['image_url'],
             seller_id=current_user.id,
             status='active'
         )
@@ -325,52 +355,24 @@ def create_listing():
         
     except Exception as e:
         db.session.rollback()
-        print("Error creating listing:", str(e))  # Detailed error log
         return jsonify({
             "error": "Failed to create listing",
             "details": str(e)
         }), 500
 
-@bp.route('/upload', methods=['POST'])
-@jwt_required()
-def upload_file():
+@bp.route('/listings/<int:listing_id>', methods=['GET'])
+def get_listing(listing_id):
     try:
-        data = request.get_json()
-        if not data or 'image' not in data:
-            return jsonify({"error": "No image data provided"}), 400
-
-        # Validate base64 image data
-        if not data['image'].startswith('data:image/'):
-            return jsonify({"error": "Invalid image format"}), 400
-
-        # Extract metadata
-        header, encoded = data['image'].split(',', 1)
-        file_ext = header.split(';')[0].split('/')[-1]
+        listing = Listing.query.get(listing_id)
+        if not listing:
+            return jsonify({"error": "Listing not found"}), 404
+            
+        return jsonify(listing.to_dict()), 200
         
-        # Use provided filename or generate one
-        filename = data.get('filename') or f"{uuid.uuid4()}.{file_ext}"
-        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-
-        # Ensure upload directory exists
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-
-        # Save the file
-        with open(filepath, 'wb') as f:
-            f.write(base64.b64decode(encoded))
-
-        return jsonify({
-            "message": "File uploaded successfully",
-            "url": f"{request.host_url}uploads/{filename}".replace('http://', 'http://')  # Ensures proper URL format
-        }), 200
-
     except Exception as e:
-        current_app.logger.error(f"Upload failed: {str(e)}")
-        return jsonify({
-            "error": "File upload failed",
-            "details": str(e)
-        }), 500
-    
-# Update Listing (PUT)
+        logger.error(f"Failed to fetch listing: {str(e)}", exc_info=True)
+        return jsonify({"error": "Failed to fetch listing"}), 500
+
 @bp.route('/listings/<int:listing_id>', methods=['PUT'])
 @jwt_required()
 def update_listing(listing_id):
@@ -388,7 +390,6 @@ def update_listing(listing_id):
         if not data:
             return jsonify({"error": "No data provided"}), 400
             
-        # Update fields if they exist in request
         if 'title' in data:
             listing.title = data['title'].strip()
         if 'description' in data:
@@ -417,7 +418,6 @@ def update_listing(listing_id):
         logger.error(f"Failed to update listing: {str(e)}", exc_info=True)
         return jsonify({"error": "Failed to update listing"}), 500
 
-# Delete Listing (DELETE)
 @bp.route('/listings/<int:listing_id>', methods=['DELETE'])
 @jwt_required()
 def delete_listing(listing_id):
@@ -431,7 +431,6 @@ def delete_listing(listing_id):
         if listing.seller_id != current_user.id and not current_user.is_admin:
             return jsonify({"error": "Unauthorized to delete this listing"}), 403
             
-        # Soft delete for users, hard delete for admins
         if current_user.is_admin:
             db.session.delete(listing)
         else:
@@ -445,80 +444,27 @@ def delete_listing(listing_id):
         logger.error(f"Failed to delete listing: {str(e)}", exc_info=True)
         return jsonify({"error": "Failed to delete listing"}), 500
 
-# Admin Listing Removal (POST)
-@bp.route('/admin/listings/<int:listing_id>/remove', methods=['POST'])
-@jwt_required()
-@admin_required
-def admin_remove_listing(listing_id):
-    try:
-        data = request.get_json()
-        if not data or 'reason' not in data:
-            return jsonify({"error": "Removal reason required"}), 400
-            
-        listing = Listing.query.get(listing_id)
-        if not listing:
-            return jsonify({"error": "Listing not found"}), 404
-            
-        listing.status = 'removed'
-        listing.removal_reason = data['reason'].strip()
-        listing.moderator_id = int(get_jwt_identity())
-        
-        db.session.commit()
-        return jsonify({
-            "message": "Listing removed by admin",
-            "listing_id": listing.id,
-            "status": listing.status
-        }), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Admin listing removal failed: {str(e)}", exc_info=True)
-        return jsonify({"error": "Failed to remove listing"}), 500
-
-# Get Single Listing (GET)
-@bp.route('/listings/<int:listing_id>', methods=['GET'])
-def get_listing(listing_id):
-    try:
-        listing = Listing.query.get(listing_id)
-        if not listing:  # Only reject if listing doesn't exist at all
-            return jsonify({"error": "Listing not found"}), 404
-            
-        return jsonify(listing.to_dict()), 200
-        
-    except Exception as e:
-        logger.error(f"Failed to fetch listing: {str(e)}", exc_info=True)
-        return jsonify({"error": "Failed to fetch listing"}), 500
-    
-# Search/Filter Listings (GET)
-# In routes.py, update the search_listings function:
 @bp.route('/listings/search', methods=['GET'])
 def search_listings():
     try:
-        # Get query parameters
         query = request.args.get('q', '').strip()
         category = request.args.get('category', '').strip()
         min_price = request.args.get('min_price')
         max_price = request.args.get('max_price')
-        status = request.args.get('status')  # Remove default value
+        status = request.args.get('status')
         seller_id = request.args.get('seller_id')
         
-        # Base query
         listings_query = Listing.query
         
-        # Special behavior for YourListingsScreen (seller's own listings)
         if seller_id:
-            # Only apply status filter if explicitly requested
             if status:
                 listings_query = listings_query.filter(Listing.status == status)
         else:
-            # Default behavior for marketplace: only show active listings
             listings_query = listings_query.filter(Listing.status == 'active')
             
-        # Filter by seller_id if provided
         if seller_id:
             listings_query = listings_query.filter(Listing.seller_id == int(seller_id))
             
-        # Apply other filters (keep existing code)
         if query:
             listings_query = listings_query.filter(
                 Listing.title.ilike(f'%{query}%') | 
@@ -540,7 +486,6 @@ def search_listings():
             except ValueError:
                 return jsonify({"error": "Invalid max_price"}), 400
                 
-        # Execute query
         listings = listings_query.order_by(Listing.created_at.desc()).all()
         
         return jsonify({
@@ -552,7 +497,43 @@ def search_listings():
         logger.error(f"Search failed: {str(e)}", exc_info=True)
         return jsonify({"error": "Search failed"}), 500
 
-#transaction
+@bp.route('/upload', methods=['POST'])
+@jwt_required()
+def upload_file():
+    try:
+        data = request.get_json()
+        if not data or 'image' not in data:
+            return jsonify({"error": "No image data provided"}), 400
+
+        if not data['image'].startswith('data:image/'):
+            return jsonify({"error": "Invalid image format"}), 400
+
+        header, encoded = data['image'].split(',', 1)
+        file_ext = header.split(';')[0].split('/')[-1]
+        
+        filename = data.get('filename') or f"{uuid.uuid4()}.{file_ext}"
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        with open(filepath, 'wb') as f:
+            f.write(base64.b64decode(encoded))
+
+        return jsonify({
+            "message": "File uploaded successfully",
+            "url": f"{request.host_url}uploads/{filename}".replace('http://', 'http://')
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Upload failed: {str(e)}")
+        return jsonify({
+            "error": "File upload failed",
+            "details": str(e)
+        }), 500
+
+# ======================
+# 5. TRANSACTION ROUTES
+# ======================
 @bp.route('/transactions', methods=['GET'])
 def get_transactions():
     listing_id = request.args.get('listing_id')
@@ -565,7 +546,6 @@ def get_transactions():
     transactions = query.all()
     return jsonify([t.to_dict() for t in transactions]), 200
 
-# Generate QR (Seller)
 @bp.route('/transactions/qr', methods=['POST'])
 @jwt_required()
 def generate_qr_code():
@@ -587,7 +567,6 @@ def generate_qr_code():
         qr_code=f"nearbuy:{uuid4().hex}",
         seller_id=current_user_id,
         listing_id=data['listing_id'],
-        # No buyer_id yet - will be set when scanned
     )
     
     db.session.add(transaction)
@@ -610,8 +589,6 @@ def confirm_transaction():
     if not data['qr_code'].startswith('nearbuy:'):
         return jsonify({"error": "Invalid QR code format"}), 400
     
-    transaction_id = data['qr_code'].split(':')[1]
-    
     transaction = Transaction.query.filter_by(
         qr_code=data['qr_code'],
         completed=False
@@ -623,7 +600,6 @@ def confirm_transaction():
     if transaction.seller_id == current_user_id:
         return jsonify({"error": "Cannot confirm your own transaction"}), 403
         
-    # Check if QR expired (1 hour limit)
     expiration_time = transaction.created_at.replace(tzinfo=timezone.utc) + timedelta(hours=1)
     current_time = datetime.now(timezone.utc)
     
@@ -633,12 +609,10 @@ def confirm_transaction():
             "details": f"Expired at {expiration_time.isoformat()}"
         }), 410
     
-    # Update transaction
     transaction.buyer_id = current_user_id
     transaction.completed = True
     transaction.completed_at = datetime.now(timezone.utc)
 
-     # Update listing status
     listing = Listing.query.get(transaction.listing_id)
     if listing:
         listing.status = 'sold'
@@ -652,22 +626,18 @@ def confirm_transaction():
         "seller_avatar": transaction.seller.avatar  
     }), 200
 
-
 @bp.route('/transactions/history', methods=['GET'])
 @jwt_required()
 def transaction_history():
-    """Get user's transaction history"""
     try:
         current_user = User.query.get(int(get_jwt_identity()))
         if not current_user:
             return jsonify({"error": "User not found"}), 404
 
-        # As buyer
         bought = Transaction.query.filter_by(
             buyer_id=current_user.id
         ).all()
         
-        # As seller
         sold = Transaction.query.filter_by(
             seller_id=current_user.id
         ).all()
@@ -675,7 +645,7 @@ def transaction_history():
         def format_transaction(t):
             return {
                 "id": t.id,
-                "item": t.listing.title,  # Changed from listing_ref to listing
+                "item": t.listing.title,
                 "price": t.listing.price,
                 "completed": t.completed,
                 "date": t.completed_at.isoformat() if t.completed else None,
@@ -696,8 +666,7 @@ def transaction_history():
             "error": "Failed to load transaction history",
             "details": "Please try again later"
         }), 500
-    
-# Dispute Transaction (Buyer)
+
 @bp.route('/transactions/<int:tx_id>/dispute', methods=['POST'])
 @jwt_required()
 def dispute_transaction(tx_id):
@@ -725,61 +694,6 @@ def dispute_transaction(tx_id):
     db.session.commit()
     return jsonify({"message": "Dispute filed"}), 200
 
-# Admin Resolve Dispute
-@bp.route('/admin/transactions/<int:tx_id>/resolve', methods=['POST'])
-@jwt_required()
-@admin_required
-def resolve_dispute(tx_id):
-    data = request.get_json()
-    transaction = Transaction.query.get(tx_id)
-    
-    if not transaction or transaction.status != 'disputed':
-        return jsonify({"error": "No active dispute found"}), 404
-        
-    if not data or 'action' not in data:
-        return jsonify({"error": "Resolution action required"}), 400
-    
-    if data['action'] == 'refund':
-        transaction.status = 'refunded'
-    elif data['action'] == 'reject':
-        transaction.status = 'completed'
-    else:
-        return jsonify({"error": "Invalid action"}), 400
-    
-    transaction.resolved_at = datetime.now(timezone.utc)
-    db.session.commit()
-    
-    return jsonify({
-        "message": f"Dispute {data['action']}ed",
-        "new_status": transaction.status
-    }), 200
-
-# Get Seller's Average Rating (Public)
-@bp.route('/users/<int:seller_id>/rating', methods=['GET'])
-def get_seller_rating(seller_id):
-    try:
-        seller = User.query.get(seller_id)
-        if not seller:
-            return jsonify({"error": "Seller not found"}), 404
-        
-        # Calculate average rating from completed transactions
-        ratings = [
-            t.rating for t in seller.sales 
-            if t.completed and t.rating is not None
-        ]
-        
-        avg_rating = round(sum(ratings) / len(ratings), 2) if ratings else None
-        
-        return jsonify({
-            "seller_id": seller.id,
-            "average_rating": avg_rating,
-            "total_ratings": len(ratings)
-        }), 200
-    
-    except Exception as e:
-        logger.error(f"Failed to fetch ratings: {str(e)}", exc_info=True)
-        return jsonify({"error": "Failed to calculate rating"}), 500
-    
 @bp.route('/transactions/<int:tx_id>/rate', methods=['POST'])
 @jwt_required()
 def rate_transaction(tx_id):
@@ -810,8 +724,67 @@ def rate_transaction(tx_id):
         "message": "Rating submitted",
         "seller_id": transaction.seller_id
     }), 200
+
+# ======================
+# 6. ADMIN ROUTES
+# ======================
+@bp.route('/admin/listings/<int:listing_id>/remove', methods=['POST'])
+@jwt_required()
+@admin_required
+def admin_remove_listing(listing_id):
+    try:
+        data = request.get_json()
+        if not data or 'reason' not in data:
+            return jsonify({"error": "Removal reason required"}), 400
+            
+        listing = Listing.query.get(listing_id)
+        if not listing:
+            return jsonify({"error": "Listing not found"}), 404
+            
+        listing.status = 'removed'
+        listing.removal_reason = data['reason'].strip()
+        listing.moderator_id = int(get_jwt_identity())
+        
+        db.session.commit()
+        return jsonify({
+            "message": "Listing removed by admin",
+            "listing_id": listing.id,
+            "status": listing.status
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Admin listing removal failed: {str(e)}", exc_info=True)
+        return jsonify({"error": "Failed to remove listing"}), 500
+
+@bp.route('/admin/transactions/<int:tx_id>/resolve', methods=['POST'])
+@jwt_required()
+@admin_required
+def resolve_dispute(tx_id):
+    data = request.get_json()
+    transaction = Transaction.query.get(tx_id)
     
-# Admin: Delete User
+    if not transaction or transaction.status != 'disputed':
+        return jsonify({"error": "No active dispute found"}), 404
+        
+    if not data or 'action' not in data:
+        return jsonify({"error": "Resolution action required"}), 400
+    
+    if data['action'] == 'refund':
+        transaction.status = 'refunded'
+    elif data['action'] == 'reject':
+        transaction.status = 'completed'
+    else:
+        return jsonify({"error": "Invalid action"}), 400
+    
+    transaction.resolved_at = datetime.now(timezone.utc)
+    db.session.commit()
+    
+    return jsonify({
+        "message": f"Dispute {data['action']}ed",
+        "new_status": transaction.status
+    }), 200
+
 @bp.route('/admin/users/<int:user_id>', methods=['DELETE'])
 @jwt_required()
 @admin_required
@@ -831,20 +804,3 @@ def delete_user(user_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Failed to delete user"}), 500
-
-# Refresh Token
-@bp.route('/refresh', methods=['POST'])
-@jwt_required(refresh=True)
-def refresh():
-    try:
-        current_user = get_jwt_identity()
-        user = User.query.get(current_user)
-        if not user:
-            return jsonify({"error": "User not found"}), 404
-            
-        return jsonify({
-            "access_token": create_access_token(identity=str(user.id))
-        })
-        
-    except Exception as e:
-        return jsonify({"error": "Token refresh failed"}), 500
