@@ -131,22 +131,39 @@ export default function QRScannerScreen() {
       });
     } catch (error: unknown) {
       let errorMessage = 'Failed to confirm transaction';
+      let allowRetry = true;
       
       if (error instanceof AxiosError) {
-        errorMessage = error.response?.status === 410 
-          ? 'QR code expired' 
-          : error.response?.data?.error || error.message;
+        if (error.response?.data?.code === 'self_transaction') {
+          errorMessage = "You can't complete your own transaction";
+          allowRetry = false; // Don't allow retry for this specific error
+        } else if (error.response?.status === 410) {
+          errorMessage = 'QR code expired';
+          allowRetry = false; // Don't allow retry for expired codes
+        } else {
+          errorMessage = error.response?.data?.error || error.message;
+        }
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
       
-      Alert.alert('Error', errorMessage);
-      setScanned(false);
+      Alert.alert('Error', errorMessage, [
+        {
+          text: 'OK',
+          onPress: () => {
+            if (allowRetry) {
+              setScanned(false);
+            } else {
+              navigation.goBack();
+            }
+          }
+        }
+      ]);
     } finally {
       setIsProcessing(false);
     }
   };
-
+  
   if (!permission) {
     return (
       <View style={styles.loadingContainer}>

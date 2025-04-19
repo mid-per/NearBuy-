@@ -104,45 +104,61 @@ export default function QRGenerateScreen() {
   const { listingId } = route.params as { listingId: string };
   const navigation = useNavigation<QRGenerateScreenProp>();
   const { user } = useUser();
+  
+useEffect(() => {
+  const generateQR = async () => {
+    try {
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
 
-  useEffect(() => {
-    const generateQR = async () => {
-      try {
-        if (!user) {
-          throw new Error('User not authenticated');
-        }
+      setIsLoading(true);
+      setError('');
+      
+      const response = await client.post('/transactions/qr', {
+        listing_id: listingId
+      });
 
-        setIsLoading(true);
-        setError('');
-        
-        const response = await client.post('/transactions/qr', {
-          listing_id: listingId
-        });
-
-        if (!response.data?.qr_code) {
-          throw new Error('Invalid QR code response');
-        }
-
+      if (response.data.existing) {
+        Alert.alert(
+          'Existing QR Code',
+          'You already have a valid QR code for this listing',
+          [
+            {
+              text: 'Use Existing',
+              onPress: () => setQrData(response.data.qr_code)
+            },
+            {
+              text: 'Generate New',
+              onPress: generateQR
+            }
+          ]
+        );
+      } else {
         setQrData(response.data.qr_code);
-      } catch (error: unknown) {
-        let errorMessage = 'Failed to generate QR code';
-        
-        if (error instanceof Error) {
-          errorMessage = error.message;
-          if (error instanceof AxiosError) {
-            errorMessage = error.response?.data?.error || error.message;
+      }
+    } catch (error: unknown) {
+      let errorMessage = 'Failed to generate QR code';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        if (error instanceof AxiosError) {
+          errorMessage = error.response?.data?.error || error.message;
+          if (error.response?.data?.code === 'invalid_listing') {
+            errorMessage = "This listing can't generate a QR code (not active or not yours)";
           }
         }
-        
-        console.error('QR Generation Error:', error);
-        setError(errorMessage);
-      } finally {
-        setIsLoading(false);
       }
-    };
+      
+      console.error('QR Generation Error:', error);
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    generateQR();
-  }, [listingId]);
+  generateQR();
+}, [listingId]);
 
   if (isLoading) {
     return (

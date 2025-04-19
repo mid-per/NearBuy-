@@ -560,11 +560,31 @@ def generate_qr_code():
         
     listing = Listing.query.filter_by(
         id=data['listing_id'],
-        seller_id=current_user_id
+        seller_id=current_user_id,
+        status='active'  # Only allow QR generation for active listings
     ).first()
     
     if not listing:
-        return jsonify({"error": "Listing not found or not owned by user"}), 404
+        return jsonify({
+            "error": "Listing not found, not owned by you, or not active",
+            "code": "invalid_listing"
+        }), 404
+        
+    # Check for existing pending transaction
+    existing_transaction = Transaction.query.filter_by(
+        listing_id=data['listing_id'],
+        completed=False
+    ).first()
+    
+    if existing_transaction:
+        # Check if existing QR is still valid
+        expiration_time = existing_transaction.created_at.replace(tzinfo=timezone.utc) + timedelta(hours=1)
+        if datetime.now(timezone.utc) < expiration_time:
+            return jsonify({
+                "qr_code": existing_transaction.qr_code,
+                "transaction_id": existing_transaction.id,
+                "existing": True
+            }), 200
         
     transaction = Transaction(
         qr_code=f"nearbuy:{uuid4().hex}",
@@ -577,13 +597,14 @@ def generate_qr_code():
     
     return jsonify({
         "qr_code": transaction.qr_code,
-        "transaction_id": transaction.id
+        "transaction_id": transaction.id,
+        "existing": False
     }), 201
 
 @bp.route('/transactions/confirm', methods=['POST'])
 @jwt_required()
 def confirm_transaction():
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     data = request.get_json()
     
     if not data or 'qr_code' not in data:
@@ -592,7 +613,10 @@ def confirm_transaction():
     if not data['qr_code'].startswith('nearbuy:'):
         return jsonify({"error": "Invalid QR code format"}), 400
     
-    transaction = Transaction.query.filter_by(
+    transaction = Transaction.query.options(
+        joinedload(Transaction.listing),
+        joinedload(Transaction.seller)
+    ).filter_by(
         qr_code=data['qr_code'],
         completed=False
     ).first()
@@ -600,33 +624,45 @@ def confirm_transaction():
     if not transaction:
         return jsonify({"error": "Transaction not found"}), 404
         
+    # Prevent seller from completing their own transaction
     if transaction.seller_id == current_user_id:
-        return jsonify({"error": "Cannot confirm your own transaction"}), 403
+        return jsonify({
+            "error": "Sellers cannot complete their own transactions",
+            "code": "self_transaction"
+        }), 403
         
+    # Validate listing status
+    if transaction.listing.status != 'active':
+        return jsonify({
+            "error": "Listing is no longer available",
+            "code": "invalid_listing"
+        }), 410
+    
+    # Validate transaction time window (1 hour)
     expiration_time = transaction.created_at.replace(tzinfo=timezone.utc) + timedelta(hours=1)
     current_time = datetime.now(timezone.utc)
     
     if current_time > expiration_time:
         return jsonify({
             "error": "QR code expired",
-            "details": f"Expired at {expiration_time.isoformat()}"
+            "code": "expired"
         }), 410
     
+    # Complete the transaction
     transaction.buyer_id = current_user_id
     transaction.completed = True
-    transaction.completed_at = datetime.now(timezone.utc)
-
-    listing = Listing.query.get(transaction.listing_id)
-    if listing:
-        listing.status = 'sold'
+    transaction.completed_at = current_time
+    transaction.listing.status = 'sold'
 
     db.session.commit()
     
     return jsonify({
         "transaction_id": transaction.id,
         "seller_id": transaction.seller_id,
-        "seller_name": transaction.seller.name,  
-        "seller_avatar": transaction.seller.avatar  
+        "seller_name": transaction.seller.name,
+        "seller_avatar": transaction.seller.avatar,
+        "listing_title": transaction.listing.title,
+        "listing_price": float(transaction.listing.price)
     }), 200
 
 @bp.route('/transactions/history', methods=['GET'])
