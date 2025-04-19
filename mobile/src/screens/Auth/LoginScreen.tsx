@@ -140,7 +140,6 @@ export default function LoginScreen() {
       delete client.defaults.headers.common['Authorization'];
   
       const response = await client.post('/login', { email, password });
-      console.log('Login response for:', email, 'Data:', response.data);
   
       if (response.data.user_id && response.data.access_token) {
         // Verify the token matches the logged-in user

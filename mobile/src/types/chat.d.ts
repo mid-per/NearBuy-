@@ -10,6 +10,9 @@ export interface ChatRoom {
   id: number;
   transactionId: number;
   listingId: number;
+  listingTitle: string;
+  listingPrice: number;  
+  listingImage?: string; 
   createdAt: Date;
 }
 

@@ -358,6 +358,13 @@ export default function ProfileScreen() {
         >
           <Text style={styles.buttonText}>View My Listings</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.button}
+          onPress={() => navigation.navigate('PurchaseHistory')}
+        >
+          <Text style={styles.buttonText}>Purchase History</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Account Settings */}

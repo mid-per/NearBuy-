@@ -120,12 +120,49 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  productHeader: {
+    flexDirection: 'row',
+    padding: 15,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    alignItems: 'center'
+  },
+  productImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 5,
+    marginRight: 15
+  },
+  productInfo: {
+    flex: 1
+  },
+  productTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4
+  },
+  productPrice: {
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '600'
+  },
 });
 
 export default function ChatScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<ChatScreenRouteProp>();
-  const { roomId, sellerId, buyerId, listingId, listingTitle, otherPartyName, otherPartyAvatar } = route.params;
+  const { 
+    roomId, 
+    sellerId, 
+    buyerId, 
+    listingId, 
+    listingTitle, 
+    listingPrice = 0, 
+    listingImage = '', 
+    otherPartyName, 
+    otherPartyAvatar 
+  } = route.params;
   const { user } = useUser();
   const [messages, setMessages] = useState<any[]>([]);
   const [message, setMessage] = useState('');
@@ -367,12 +404,50 @@ export default function ChatScreen() {
     );
   }
 
+  const ProductHeader = () => {
+    if (!listingImage && !listingTitle) return null;
+    
+    return (
+      <TouchableOpacity 
+        style={styles.productHeader}
+        onPress={() => navigation.navigate('ListingDetails', { listingId })}
+      >
+        {listingImage ? (
+          <Image 
+            source={{ 
+              uri: listingImage.startsWith('http') 
+                ? listingImage 
+                : `${BACKEND_BASE_URL}${listingImage}`,
+              cache: 'force-cache'
+            }}
+            style={styles.productImage}
+          />
+        ) : (
+          <View style={[styles.productImage, { backgroundColor: '#f5f5f5', justifyContent: 'center', alignItems: 'center' }]}>
+            <MaterialIcons name="photo" size={24} color="#ccc" />
+          </View>
+        )}
+        <View style={styles.productInfo}>
+          <Text style={styles.productTitle} numberOfLines={1}>
+            {listingTitle || 'Product'}
+          </Text>
+          <Text style={styles.productPrice}>
+            {listingPrice ? `$${listingPrice.toFixed(2)}` : 'Price not available'}
+          </Text>
+        </View>
+        <MaterialIcons name="chevron-right" size={24} color="#999" />
+      </TouchableOpacity>
+    );
+  };
+  
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
       keyboardVerticalOffset={90}
     >
+      <ProductHeader />
+
       <FlatList
         ref={flatListRef}
         data={messages}

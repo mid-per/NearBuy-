@@ -19,6 +19,8 @@ export type RootStackParamList = {
     sellerId: number;
     buyerId: number; 
     listingTitle: string;
+    listingPrice?: number;
+    listingImage?: string;
     status?: 'active' | 'sold';
     otherPartyName?: string;
     otherPartyAvatar?: string;
@@ -40,6 +42,7 @@ export type RootStackParamList = {
   EditBasicProfile: undefined;
   ChangeEmail: undefined;
   ChangePassword: undefined;
+  PurchaseHistory: undefined;
   
   // Add other screens here as you create them
 };

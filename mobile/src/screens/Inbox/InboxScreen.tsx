@@ -16,6 +16,7 @@ import { useUser } from '@/contexts/UserContext';
 import client from '@/api/client';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BACKEND_BASE_URL } from '@/config';
+import { formatChatTime } from '@/utils/dateFormatter';
 
 type InboxScreenProp = NativeStackNavigationProp<RootStackParamList, 'Inbox'>;
 
@@ -25,9 +26,12 @@ interface ChatItem {
   buyer_id: number;
   listing_id: number;
   listing_title: string;
+  listing_price: number;
+  listing_image?: string;
   status: 'active' | 'sold';
   last_message?: string;
   last_message_time?: string;
+  last_message_time_display?: string;
   seller_avatar?: string;
   buyer_avatar?: string;
   seller_name?: string;
@@ -52,6 +56,20 @@ const styles = StyleSheet.create({
   },
   soldChatItem: {
     opacity: 0.6,
+  },
+  listingImageContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+    overflow: 'hidden',
+  },
+  listingImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarContainer: {
     width: 50,
@@ -78,6 +96,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     flexShrink: 1,
+  },
+  chatPrice: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+    marginBottom: 4,
   },
   soldText: {
     color: '#FF3B30',
@@ -128,6 +152,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  productInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
 });
 
 export default function InboxScreen() {
@@ -144,30 +172,38 @@ export default function InboxScreen() {
       const response = await client.get('/chats');
       const processedChats = response.data.chats.map((chat: any) => ({
         ...chat,
+        listing_image: chat.listing_image ? 
+          (chat.listing_image.startsWith('http') ? chat.listing_image : `${BACKEND_BASE_URL}${chat.listing_image}`) 
+          : undefined,
         seller_avatar: chat.seller_avatar ? 
           (chat.seller_avatar.startsWith('http') ? chat.seller_avatar : `${BACKEND_BASE_URL}${chat.seller_avatar}`) 
           : undefined,
         buyer_avatar: chat.buyer_avatar ? 
           (chat.buyer_avatar.startsWith('http') ? chat.buyer_avatar : `${BACKEND_BASE_URL}${chat.buyer_avatar}`) 
           : undefined,
-        last_message_time: formatTime(chat.last_message_time),
+        last_message_time: chat.last_message_time, 
+        last_message_time_display: formatChatTime(chat.last_message_time),
         status: chat.status || 'active',
-        completed_at: chat.completed_at // Add completed_at from backend
+        completed_at: chat.completed_at
       }));
       
-      // Sort chats - active first, then sold, with newest sold at top
       const sortedChats = [...processedChats].sort((a, b) => {
-        // Active listings come first
-        if (a.status === 'active' && b.status !== 'active') return -1;
-        if (a.status !== 'active' && b.status === 'active') return 1;
-        
-        // For sold listings, sort by completed_at (newest first)
-        if (a.status === 'sold' && b.status === 'sold') {
-          return new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime();
+        // 1. Separate active and sold chats (active first)
+        if (a.status !== b.status) {
+          return a.status === 'active' ? -1 : 1;
         }
         
-        // For active listings, sort by last message time
-        return new Date(b.last_message_time || 0).getTime() - new Date(a.last_message_time || 0).getTime();
+        // 2. For active chats: newest messages first
+        if (a.status === 'active') {
+          const aTime = a.last_message_time ? new Date(a.last_message_time).getTime() : 0;
+          const bTime = b.last_message_time ? new Date(b.last_message_time).getTime() : 0;
+          return bTime - aTime; // Newest first
+        }
+        
+        // 3. For sold chats: newest completed first
+        const aCompleted = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+        const bCompleted = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+        return bCompleted - aCompleted; // Newest first
       });
       
       setChats(sortedChats);
@@ -218,8 +254,6 @@ export default function InboxScreen() {
         renderItem={({ item }) => {
           const isSold = item.status === 'sold';
           const unreadCount = item.unread_count || 0;
-          
-          // Determine which user is the other party
           const isSeller = user?.id === item.seller_id;
           const otherPartyAvatar = isSeller ? item.buyer_avatar : item.seller_avatar;
           const otherPartyName = isSeller ? item.buyer_name : item.seller_name;
@@ -236,22 +270,21 @@ export default function InboxScreen() {
                 buyerId: item.buyer_id,
                 listingId: item.listing_id,
                 listingTitle: item.listing_title,
+                listingPrice: item.listing_price,
+                listingImage: item.listing_image,
                 status: item.status,
                 otherPartyName,
                 otherPartyAvatar
               })}
             >
-              <View style={styles.avatarContainer}>
-                {otherPartyAvatar ? (
+              <View style={styles.listingImageContainer}>
+                {item.listing_image ? (
                   <Image 
-                  source={{ 
-                    uri: `${otherPartyAvatar}`,
-                    cache: 'force-cache' 
-                  }}
-                    style={{ width: '100%', height: '100%' }}
+                    source={{ uri: item.listing_image }}
+                    style={styles.listingImage}
                   />
                 ) : (
-                  <MaterialIcons name="person" size={24} color="#666" />
+                  <MaterialIcons name="photo" size={24} color="#ccc" />
                 )}
               </View>
               
@@ -265,21 +298,37 @@ export default function InboxScreen() {
                     numberOfLines={1}
                   >
                     {item.listing_title || 'Unknown Listing'}
-                    {isSold && ' (Sold)'}
                   </Text>
                   <Text style={styles.chatTime}>
-                    {item.last_message_time}
+                    {item.last_message_time_display || ''}
                   </Text>
                 </View>
-                <Text 
-                  style={[
-                    styles.chatPreview,
-                    isSold && styles.soldPreview
-                  ]} 
-                  numberOfLines={1}
-                >
-                  {item.last_message || 'No messages yet'}
+                
+                <Text style={styles.chatPrice}>
+                  ${item.listing_price?.toFixed(2) || '0.00'}
                 </Text>
+                
+                <View style={styles.productInfoContainer}>
+                  <View style={styles.avatarContainer}>
+                    {otherPartyAvatar ? (
+                      <Image 
+                        source={{ uri: otherPartyAvatar }}
+                        style={{ width: '100%', height: '100%' }}
+                      />
+                    ) : (
+                      <MaterialIcons name="person" size={24} color="#666" />
+                    )}
+                  </View>
+                  <Text 
+                    style={[
+                      styles.chatPreview,
+                      isSold && styles.soldPreview
+                    ]} 
+                    numberOfLines={1}
+                  >
+                    {item.last_message || 'No messages yet'}
+                  </Text>
+                </View>
               </View>
         
               {unreadCount > 0 ? (

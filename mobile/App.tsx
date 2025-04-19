@@ -23,7 +23,7 @@ import RatingScreen from '@/screens/Transactions/RatingScreen';
 import EditBasicProfileScreen from '@/screens/Profile/EditBasicProfileScreen';
 import ChangeEmailScreen from '@/screens/Profile/ChangeEmailScreen';
 import ChangePasswordScreen from '@/screens/Profile/ChangePasswordScreen';
-
+import PurchaseHistoryScreen from '@/screens/Profile/PurchaseHistoryScreen';
 // Context and Types
 import { UserProvider } from '@/contexts/UserContext';
 import { RootStackParamList, MainTabParamList } from '@/types/navigation';
@@ -195,6 +195,11 @@ export default function App() {
             name="SellerListings" 
             component={SellerListingsScreen} 
             options={{ title: 'Seller Listing' }} 
+          />
+          <Stack.Screen 
+            name="PurchaseHistory" 
+            component={PurchaseHistoryScreen}
+            options={{ title: 'Purchase History' }}
           />
           <Stack.Screen 
             name="CreateListing" 

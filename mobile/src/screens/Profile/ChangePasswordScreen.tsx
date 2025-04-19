@@ -42,16 +42,18 @@ export default function ChangePasswordScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({
     match: false,
-    length: false
+    length: false,
+    sameAsCurrent: false
   });
 
   const validate = () => {
     const newErrors = {
       match: newPassword !== confirmPassword,
-      length: newPassword.length < 8
+      length: newPassword.length < 8,
+      sameAsCurrent: newPassword === currentPassword && currentPassword !== ''
     };
     setErrors(newErrors);
-    return !newErrors.match && !newErrors.length;
+    return !newErrors.match && !newErrors.length && !newErrors.sameAsCurrent;
   };
 
   const handleSubmit = async () => {
@@ -64,6 +66,15 @@ export default function ChangePasswordScreen() {
         newPassword
       });
       Alert.alert('Success', 'Password changed successfully');
+      // Clear form after successful change
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setErrors({
+        match: false,
+        length: false,
+        sameAsCurrent: false
+      });
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.error || 'Failed to change password');
     } finally {
@@ -99,13 +110,14 @@ export default function ChangePasswordScreen() {
         onBlur={validate}
       />
 
-      {errors.match && <Text style={styles.errorText}>Passwords don't match</Text>}
+      {errors.match && <Text style={styles.errorText}>New passwords don't match</Text>}
       {errors.length && <Text style={styles.errorText}>Password must be at least 8 characters</Text>}
+      {errors.sameAsCurrent && <Text style={styles.errorText}>New password must be different from current password</Text>}
 
       <TouchableOpacity 
         style={styles.button} 
         onPress={handleSubmit}
-        disabled={isLoading || errors.match || errors.length}
+        disabled={isLoading || errors.match || errors.length || errors.sameAsCurrent}
       >
         {isLoading ? (
           <ActivityIndicator color="#fff" />

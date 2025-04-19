@@ -33,20 +33,15 @@ def initiate_chat():
     current_user_id = int(get_jwt_identity())
     data = request.get_json()
     
-    print(f"Initiate chat request from user {current_user_id} with data: {data}")  # Debug log
-    
     if not data or 'listing_id' not in data:
-        print("Missing listing_id in request")  # Debug log
         return jsonify({"error": "Listing ID required"}), 400
 
     try:
         listing = Listing.query.get(data['listing_id'])
         if not listing:
-            print(f"Listing not found: {data['listing_id']}")  # Debug log
             return jsonify({"error": "Listing not found"}), 404
 
         if listing.seller_id == current_user_id:
-            print("User tried to chat with themselves")  # Debug log
             return jsonify({"error": "Cannot create chat with yourself"}), 403
 
         # Check for existing transaction or create new
@@ -56,7 +51,6 @@ def initiate_chat():
         ).first()
 
         if not transaction:
-            print("Creating new transaction")  # Debug log
             transaction = Transaction(
                 qr_code=f"nearbuy:{uuid.uuid4().hex}",
                 seller_id=listing.seller_id,
@@ -65,11 +59,9 @@ def initiate_chat():
             )
             db.session.add(transaction)
             db.session.commit()
-            print(f"Created new transaction: {transaction.id}")  # Debug log
 
         # Get or create chat room
         if not transaction.chat_room:
-            print("Creating new chat room")  # Debug log
             new_room = ChatRoom(
                 transaction_id=transaction.id,
                 listing_id=listing.id
@@ -77,18 +69,18 @@ def initiate_chat():
             db.session.add(new_room)
             db.session.commit()
             transaction.chat_room = new_room
-            print(f"Created new chat room: {new_room.id}")  # Debug log
 
         return jsonify({
             "room_id": transaction.chat_room.id,
             "transaction_id": transaction.id,
             "listing_id": listing.id,
             "seller_id": listing.seller_id,
-            "listing_title": listing.title
+            "listing_title": listing.title,
+            "listing_price": float(listing.price),
+            "listing_image": listing.image_url
         }), 200
 
     except Exception as e:
-        print(f"Error in initiate_chat: {str(e)}")  # Debug log
         db.session.rollback()
         return jsonify({"error": "Failed to initiate chat", "details": str(e)}), 500
     
@@ -105,6 +97,8 @@ def get_user_chats():
     chats = db.session.query(
         ChatRoom,
         Listing.title.label('listing_title'),
+        Listing.price.label('listing_price'),  
+        Listing.image_url.label('listing_image'),
         Listing.status.label('listing_status'),
         User.name.label('seller_name'),
         User.avatar.label('seller_avatar'),
@@ -129,7 +123,7 @@ def get_user_chats():
     
     # Get last message for each chat
     result = []
-    for chat, listing_title, listing_status, seller_name, seller_avatar, buyer_name, buyer_avatar in chats:
+    for chat, listing_title, price, image, listing_status, seller_name, seller_avatar, buyer_name, buyer_avatar in chats:
         last_msg = ChatMessage.query.filter_by(room_id=chat.id)\
             .order_by(ChatMessage.sent_at.desc()).first()
             
@@ -137,6 +131,8 @@ def get_user_chats():
             'id': chat.id,
             'listing_id': chat.listing_id,
             'listing_title': listing_title,
+            'listing_price': float(price) if price else 0,  # Add this
+            'listing_image': image, 
             'status': listing_status,
             'seller_id': chat.transaction.seller_id,
             'buyer_id': chat.transaction.buyer_id,
@@ -145,8 +141,8 @@ def get_user_chats():
             'seller_name': seller_name,
             'buyer_name': buyer_name,
             'last_message': last_msg.content if last_msg else None,
-            'last_message_time': last_msg.sent_at.isoformat() if last_msg else None,
-            'completed_at': chat.transaction.completed_at.isoformat() if chat.transaction.completed_at else None,
+            'last_message_time': last_msg.sent_at.replace(tzinfo=timezone.utc).isoformat() if last_msg else None,
+            'completed_at': chat.transaction.completed_at.replace(tzinfo=timezone.utc).isoformat() if chat.transaction.completed_at else None,
             'unread_count': ChatMessage.query.filter_by(
                 room_id=chat.id,
                 read_at=None

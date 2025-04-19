@@ -16,6 +16,8 @@ import base64
 import os
 import uuid
 import time 
+from sqlalchemy.orm import joinedload
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -157,8 +159,9 @@ def change_password():
         
     if len(data['newPassword']) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
-        
-    user.password = generate_password_hash(data['newPassword'])
+    
+    # Critical fix - Set password directly to trigger model's hash event
+    user.password = data['newPassword']  # Let SQLAlchemy event handle hashing
     db.session.commit()
     
     return jsonify({"message": "Password updated successfully"}), 200
@@ -636,23 +639,41 @@ def transaction_history():
 
         bought = Transaction.query.filter_by(
             buyer_id=current_user.id
+        ).options(
+            joinedload(Transaction.listing),
+            joinedload(Transaction.seller)
         ).all()
         
         sold = Transaction.query.filter_by(
             seller_id=current_user.id
+        ).options(
+            joinedload(Transaction.listing),
+            joinedload(Transaction.buyer)
         ).all()
         
         def format_transaction(t):
+            counterparty = None
+            if t.completed:
+                if t.buyer_id == current_user.id:
+                    counterparty = {
+                        "id": t.seller.id,
+                        "email": t.seller.email
+                    } if t.seller else None
+                else:
+                    counterparty = {
+                        "id": t.buyer.id,
+                        "email": t.buyer.email
+                    } if t.buyer else None
+
             return {
                 "id": t.id,
-                "item": t.listing.title,
-                "price": t.listing.price,
+                "listing_id": t.listing.id,
+                "title": t.listing.title,
+                "price": float(t.listing.price),
+                "image_url": t.listing.image_url,
                 "completed": t.completed,
-                "date": t.completed_at.isoformat() if t.completed else None,
-                "counterparty": {
-                    "id": t.seller.id if t.buyer_id == current_user.id else t.buyer.id,
-                    "email": t.seller.email if t.buyer_id == current_user.id else t.buyer.email
-                }
+                "completed_at": t.completed_at.isoformat() if t.completed_at else None,
+                "counterparty": counterparty
             }
         
         return jsonify({

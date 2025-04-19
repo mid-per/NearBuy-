@@ -7,18 +7,27 @@ test_api.bat (no need anymore, we automated testing in tests/)
 
 python -m app.main
 python reset_db.py
+-------------------------------------------------------------
 .\.venv\Scripts\Activate.ps1
 $env:FLASK_APP="app.main:app"
 flask db migrate -m "Add TransactionStatusHistory model"
 flask db upgrade
+-------------------------------------------------------------
 for expo remember to always use npx -> New Local Expo CLI
 npx expo start -c
 npx react-native run-android
+---------------------------------------------------------------
 python -m pytest tests
 python -m pytest tests/test_websocket.py -v
-
+---------------------------------------------------------------
 wsgi.py is an optional entry point that serves two main purposes in your Flask/SocketIO backend
-lmao The WebSocket server runs on the same port (5000) as your Flask app
+The WebSocket server runs on the same port (5000) as your Flask app
+---------------------------------------------------------------------------
+cd C:\Users\suwijack\Desktop\year4 sem2\team software project\NearBuy\backend\database
+sqlite3 nearbuy.db
+UPDATE users SET password = 'scrypt:32768:8:1$cy6bJ0wBqCx3nvYx$ba6d9670da12ad1e357e1f0de82a499d5b62894f5430af583ae7fa93701ed54e44c92d943529ecd183adf4bff156eb823714fb33e7d1613faee66fd8a24dd696' WHERE email = 'user2@example.com';
+SELECT email, password FROM users WHERE email = 'user1@example.com';
+.quit
 ---------------------------------------------------------------------------
 Backend Specifications
 

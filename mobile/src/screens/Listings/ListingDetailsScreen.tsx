@@ -391,12 +391,12 @@ export default function ListingDetailsScreen() {
       ]);
       return;
     }
-
+  
     if (!listing) {
       Alert.alert('Error', 'Listing information not available');
       return;
     }
-
+  
     try {
       const response = await client.post('/chats/initiate', {
         listing_id: listing?.id
@@ -407,7 +407,11 @@ export default function ListingDetailsScreen() {
         listingId: listing?.id,
         sellerId: listing?.seller_id,
         buyerId: user.id,
-        listingTitle: listing.title || `Item ${listing.id}`
+        listingTitle: listing.title,
+        listingPrice: listing.price,
+        listingImage: listing.image_url,
+        otherPartyName: sellerInfo.name,
+        otherPartyAvatar: sellerInfo.avatar
       });
     } catch (error) {
       if (isAxiosError(error) && error.response?.status === 403) {
