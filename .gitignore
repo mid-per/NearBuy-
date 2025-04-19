@@ -3,4 +3,5 @@ node_modules/
 *.log
 .env
 build/
-dist/
+dist/"nearbuy.db" 
+"*.db" 
