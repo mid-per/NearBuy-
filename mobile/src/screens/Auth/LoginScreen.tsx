@@ -153,15 +153,19 @@ export default function LoginScreen() {
         setUser({
           id: response.data.user_id,
           email: response.data.email,
-          name: null, // or get from response if available
-          avatar: null, // or get from response if available
-          is_admin: false,
+          name: null,
+          avatar: null,
+          is_admin: response.data.is_admin || false,
           bio: null,
           location: null,
           phone: null
         });
   
-        navigation.navigate('Main');
+        if (response.data.is_admin) {
+          navigation.navigate('UserManagement');
+        } else {
+          navigation.navigate('Main');
+        }
       }
     } catch (error) {
       console.error('Full login error:', error);

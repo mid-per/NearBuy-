@@ -14,6 +14,9 @@ class User(db.Model):
     location = db.Column(db.String(100))  
     phone = db.Column(db.String(20), 
                      info={'check_constraint': 'length(phone) >= 8'})
+    is_deleted = db.Column(db.Boolean, default=False)  
+    deleted_at = db.Column(db.DateTime, nullable=True) 
+    original_email = db.Column(db.String(80))  # Store original email before anonymization
     # As a SELLER (listings they created)
     listings = db.relationship(
         'Listing', 

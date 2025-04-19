@@ -31,6 +31,7 @@ def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         current_user = User.query.get(int(get_jwt_identity()))
+        print(f"Admin check for user {current_user.id}, is_admin={current_user.is_admin}") 
         if not current_user or not current_user.is_admin:
             return jsonify({"error": "Admin access required"}), 403
         return f(*args, **kwargs)
@@ -785,6 +786,24 @@ def rate_transaction(tx_id):
 # ======================
 # 6. ADMIN ROUTES
 # ======================
+@bp.route('/admin/users', methods=['GET'])
+@jwt_required()
+@admin_required
+def admin_get_users():
+    users = User.query.filter(
+        (User.is_deleted == 0) | (User.is_deleted == None)
+    ).all()
+    
+    return jsonify({
+        "users": [{
+            "id": u.id,
+            "email": u.email,
+            "name": u.name or "Unnamed User",  # Handle NULL names
+            "is_admin": bool(u.is_admin),
+            "avatar": u.avatar
+        } for u in users]
+    })
+
 @bp.route('/admin/listings/<int:listing_id>/remove', methods=['POST'])
 @jwt_required()
 @admin_required
@@ -847,16 +866,32 @@ def resolve_dispute(tx_id):
 @admin_required
 def delete_user(user_id):
     try:
+        current_user = User.query.get(int(get_jwt_identity()))
         user = User.query.get(user_id)
+        
         if not user:
             return jsonify({"error": "User not found"}), 404
+            
+        if user.id == current_user.id:
+            return jsonify({"error": "Cannot delete yourself"}), 403
             
         if user.is_admin:
             return jsonify({"error": "Cannot delete admin users"}), 403
             
-        db.session.delete(user)
+        # Soft delete implementation
+        user.is_deleted = True
+        user.deleted_at = datetime.now(timezone.utc)
+        user.original_email = user.email
+        user.email = f"deleted_{user.id}@nearbuy.invalid"
+        user.name = "Deleted User"
+        user.avatar = None
+        user.bio = None
+        user.location = None
+        user.phone = None
+        user.password = "invalid_password_hash"
+        
         db.session.commit()
-        return jsonify({"message": "User deleted"}), 200
+        return jsonify({"message": "User anonymized"}), 200
         
     except Exception as e:
         db.session.rollback()

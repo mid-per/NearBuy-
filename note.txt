@@ -8,10 +8,12 @@ test_api.bat (no need anymore, we automated testing in tests/)
 python -m app.main
 python reset_db.py
 -------------------------------------------------------------
+db migration step
 .\.venv\Scripts\Activate.ps1
 $env:FLASK_APP="app.main:app"
 flask db migrate -m "Add TransactionStatusHistory model"
 flask db upgrade
+SELECT id, email, is_admin FROM users WHERE email = 'admin1@example.com'; //bla bla useless
 -------------------------------------------------------------
 for expo remember to always use npx -> New Local Expo CLI
 npx expo start -c

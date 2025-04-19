@@ -24,9 +24,11 @@ import EditBasicProfileScreen from '@/screens/Profile/EditBasicProfileScreen';
 import ChangeEmailScreen from '@/screens/Profile/ChangeEmailScreen';
 import ChangePasswordScreen from '@/screens/Profile/ChangePasswordScreen';
 import PurchaseHistoryScreen from '@/screens/Profile/PurchaseHistoryScreen';
+import UserManagementScreen from '@/screens/Admin/UserManagementScreen';
 // Context and Types
 import { UserProvider } from '@/contexts/UserContext';
 import { RootStackParamList, MainTabParamList } from '@/types/navigation';
+
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -156,6 +158,11 @@ export default function App() {
             name="Register" 
             component={RegisterScreen} 
             options={{ title: '' }} 
+          />
+          <Stack.Screen 
+            name="UserManagement" 
+            component={UserManagementScreen} 
+            options={{ title: 'User Management' }} 
           />
           <Stack.Screen 
             name="Main" 
