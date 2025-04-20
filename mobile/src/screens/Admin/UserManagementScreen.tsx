@@ -95,13 +95,11 @@ export default function UserManagementScreen() {
 
   const fetchUsers = async () => {
     try {
-      console.log("Fetching users..."); // Add this
       setLoading(true);
       const response = await client.get('/admin/users');
-      console.log("API Response:", response.data); // Add this
       setUsers(response.data.users);
     } catch (error) {
-      console.error('API Error:', error); // Enhanced logging
+      console.error('API Error:', error); 
       Alert.alert('Error', 'Failed to load users');
     } finally {
       setLoading(false);

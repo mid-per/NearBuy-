@@ -263,6 +263,24 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 8,
   },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  statItem: {
+    alignItems: 'center',
+    marginHorizontal: 15,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#007AFF',
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
 });
 
 export default function ListingDetailsScreen() {
@@ -280,7 +298,9 @@ export default function ListingDetailsScreen() {
     email: '',
     bio: '',
     location: '',
-    phone: ''
+    phone: '',
+    rating: 0, 
+    listingsCount: 0 
   });
   const [showProfile, setShowProfile] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -351,7 +371,9 @@ export default function ListingDetailsScreen() {
               email: sellerResponse.data.email,
               bio: sellerResponse.data.bio || '',
               location: sellerResponse.data.location || '',
-              phone: sellerResponse.data.phone || ''
+              phone: sellerResponse.data.phone || '',
+              rating: sellerResponse.data.rating || 0, // Add rating
+              listingsCount: sellerResponse.data.listings_count || 0 // Add listings count
             });
           } catch (sellerError) {
             console.log('Using fallback seller info');
@@ -361,7 +383,9 @@ export default function ListingDetailsScreen() {
               email: '',
               bio: '',
               location: '',
-              phone: ''
+              phone: '',
+              rating: 0,
+              listingsCount: 0
             });
           }
         }
@@ -482,6 +506,25 @@ export default function ListingDetailsScreen() {
                 
                 <Text style={styles.profileName}>{sellerInfo.name}</Text>
                 <Text style={styles.profileEmail}>{sellerInfo.email}</Text>
+                <View style={{ 
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  marginBottom: 15,
+                  marginTop: 10
+                }}>
+                  <View style={{ alignItems: 'center', marginHorizontal: 15 }}>
+                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#007AFF' }}>
+                      {sellerInfo.rating.toFixed(1)}
+                    </Text>
+                    <Text style={{ fontSize: 14, color: '#666' }}>Rating</Text>
+                  </View>
+                  <View style={{ alignItems: 'center', marginHorizontal: 15 }}>
+                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#007AFF' }}>
+                      {sellerInfo.listingsCount}
+                    </Text>
+                    <Text style={{ fontSize: 14, color: '#666' }}>Listings</Text>
+                  </View>
+                </View>
               </View>
   
               {/* Seller Information Section */}
