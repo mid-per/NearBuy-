@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '@/types/navigation';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useUser } from '@/contexts/UserContext';
@@ -17,6 +17,7 @@ import client from '@/api/client';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BACKEND_BASE_URL } from '@/config';
 import { formatChatTime } from '@/utils/dateFormatter';
+import socket from '@/utils/socket';
 
 type InboxScreenProp = NativeStackNavigationProp<RootStackParamList, 'Inbox'>;
 
@@ -37,6 +38,7 @@ interface ChatItem {
   seller_name?: string;
   buyer_name?: string;
   unread_count?: number;
+  completed_at?: string;
 }
 
 const styles = StyleSheet.create({
@@ -188,22 +190,19 @@ export default function InboxScreen() {
       }));
       
       const sortedChats = [...processedChats].sort((a, b) => {
-        // 1. Separate active and sold chats (active first)
         if (a.status !== b.status) {
           return a.status === 'active' ? -1 : 1;
         }
         
-        // 2. For active chats: newest messages first
         if (a.status === 'active') {
           const aTime = a.last_message_time ? new Date(a.last_message_time).getTime() : 0;
           const bTime = b.last_message_time ? new Date(b.last_message_time).getTime() : 0;
-          return bTime - aTime; // Newest first
+          return bTime - aTime;
         }
         
-        // 3. For sold chats: newest completed first
         const aCompleted = a.completed_at ? new Date(a.completed_at).getTime() : 0;
         const bCompleted = b.completed_at ? new Date(b.completed_at).getTime() : 0;
-        return bCompleted - aCompleted; // Newest first
+        return bCompleted - aCompleted;
       });
       
       setChats(sortedChats);
@@ -215,11 +214,51 @@ export default function InboxScreen() {
     }
   };
 
-  const formatTime = (timestamp?: string) => {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  // Handle real-time updates
+  React.useEffect(() => {
+    const handleMessagesRead = (data: { room_id: number }) => {
+      setChats(prevChats => 
+        prevChats.map(chat => 
+          chat.id === data.room_id 
+            ? { ...chat, unread_count: 0 } 
+            : chat
+        )
+      );
+    };
+
+    const handleNewMessage = (msg: any) => {
+      if (msg.sender_id !== user?.id) {
+        setChats(prevChats => 
+          prevChats.map(chat => 
+            chat.id === msg.room_id 
+              ? { 
+                  ...chat, 
+                  unread_count: (chat.unread_count || 0) + 1,
+                  last_message: msg.content,
+                  last_message_time: msg.timestamp,
+                  last_message_time_display: formatChatTime(msg.timestamp)
+                } 
+              : chat
+          )
+        );
+      }
+    };
+
+    socket.on('messages_read', handleMessagesRead);
+    socket.on('new_message', handleNewMessage);
+
+    return () => {
+      socket.off('messages_read', handleMessagesRead);
+      socket.off('new_message', handleNewMessage);
+    };
+  }, [user?.id]);
+
+  // Refresh data on focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchChats();
+    }, [user?.id])
+  );
 
   React.useEffect(() => {
     fetchChats();

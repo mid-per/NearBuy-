@@ -19,7 +19,6 @@ import { isAxiosError } from 'axios';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Listing } from '@/types/listing';
 import { useUser } from '@/contexts/UserContext';
-import { useLayoutEffect } from 'react';
 
 type SellerListingsScreenProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -158,13 +157,6 @@ export default function SellerListingsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      title: sellerName ? `${sellerName}'s Listings` : 'Listings',
-      headerBackTitle: 'Back',
-    });
-  }, [navigation, sellerName]);
   
   const fetchListings = async () => {
     try {
@@ -273,38 +265,44 @@ export default function SellerListingsScreen() {
     );
   }
 
-  return (
-    <View style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.contentContainer}
-        refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh}
-            colors={['#007AFF']}
-          />
-        }
-      >
-        {listings.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {sellerName 
-                ? `${sellerName} hasn't listed any items yet` 
-                : 'No listings found'}
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={listings}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id.toString()}
-            numColumns={2}
-            columnWrapperStyle={styles.gridContainer}
-            scrollEnabled={false}
-            contentContainerStyle={{ paddingTop: 10 }}
-          />
-        )}
-      </ScrollView>
-    </View>
-  );
+return (
+  <View style={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.contentContainer}
+      refreshControl={
+        <RefreshControl 
+          refreshing={refreshing} 
+          onRefresh={onRefresh}
+          colors={['#007AFF']}
+        />
+      }
+    >
+      <View style={styles.header}>
+        <Text style={styles.headerText}>
+          {sellerName ? `${sellerName}'s Listings` : 'Listings'}
+        </Text>
+      </View>
+
+      {listings.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>
+            {sellerName 
+              ? `${sellerName} hasn't listed any items yet` 
+              : 'No listings found'}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={listings}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id.toString()}
+          numColumns={2}
+          columnWrapperStyle={styles.gridContainer}
+          scrollEnabled={false}
+          contentContainerStyle={{ paddingTop: 10 }}
+        />
+      )}
+    </ScrollView>
+  </View>
+);
 }

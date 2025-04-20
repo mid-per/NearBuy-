@@ -162,7 +162,7 @@ export default function App() {
           <Stack.Screen 
             name="UserManagement" 
             component={UserManagementScreen} 
-            options={{ title: 'User Management' }} 
+            options={{ title: '' }} 
           />
           <Stack.Screen 
             name="Main" 
@@ -201,12 +201,12 @@ export default function App() {
           <Stack.Screen 
             name="SellerListings" 
             component={SellerListingsScreen} 
-            options={{ title: 'Seller Listing' }} 
+            options={{ title: ''}} 
           />
           <Stack.Screen 
             name="PurchaseHistory" 
             component={PurchaseHistoryScreen}
-            options={{ title: 'Purchase History' }}
+            options={{ title: '' }}
           />
           <Stack.Screen 
             name="CreateListing" 
