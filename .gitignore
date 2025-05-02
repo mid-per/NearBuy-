@@ -5,4 +5,4 @@ node_modules/
 build/
 dist/"nearbuy.db" 
 "*.db" 
-backend/uploads/
+backend/app/uploads/
